@@ -15,32 +15,12 @@ import {
 
 const BUDGET_HEADS = {
   'Normal Sanction': [
-  '2202 02 109 96 00 28-GSS-Professional Services',
-  '2202 02 101 94 00 01-Pre Primary-Salaries',
-  '2202 02 101 94 00 05-Pre Primary-Rewards',
   '2202 02 101 94 00 06-Pre Primary-Medical Treatm.',
-  '2202 02 101 94 00 07-Pre Primary-Allowances',
-  '2202 01 101 94 00 21-Pre Primary-Supplies & Material',
-  '2202 02 109 85 00 13-Improvement and expansion of teaching of Science at school stage-Office Expenses',
-  '2202 02 109 87 00 01-Additional Schooling Facilities-Sal.',
-  '2202 02 109 87 00 02-Additional Schooling Facilities-Wages',
-  '2202 02 109 87 00 05-Additional Schooling Facilities-Rewards',
   '2202 02 109 87 00 06-Additional Schooling Facilities-Medical Treatment',
-  '2202 02 109 87 00 07-Additional Schooling Facilities-Allowances',
-  '2202 02 109 87 00 08-ASF (LTC)',
-  '2202 02 109 87 00 11-ASF (DTE)',
-  '2202 02 109 96 00 01-Govt. Sec. Schooling Salaries',
-  '2202 02 109 96 00 05-Govt. Sec. Schooling Rewards',
-  '2202 02 109 96 00 06-Govt. Sec. Schooling Medical',
-  '2202 02 109 96 00 07-Govt. Sec. Schooling Allowances',
-  '2202 02 109 96 00 08-Govt. Sec. Schooling-LTC',
-  '2202 02 109 96 00 11-Govt. Sec. Schooling-DTE',
-  '2202 02 109 96 00 13-GSS OE (i)-Elecricity,water',
-  '2202 02 109 96 00 13-GSS OE (ii)-Office Exp.',
-  '2202 02 109 96 00 13-GSS (iii)-Salary of Estate Manag',
-  '2202 02 109 96 00 13-GSS (iv)-Security',
-  '2202 02 109 96 00 13-GSS (vi)-aaya'
+  '2202 02 109 96 00 06-Govt. Sec. Schooling Medical'
+  
 ],
+
   'Vendor Sanction': [
   '2202 02 109 96 00 49-GSS-Other Revenue Expenditure',
   '2204 00 104 98 00 13-Promotion of Sports-Act. OE',
@@ -60,9 +40,17 @@ const BUDGET_HEADS = {
   '2202 02 109 90 00 13-YUVA-OE',
   '2202 02 109 90 00 21-YUVA Supplies and Material',
   '2202 80 789 97 00 21-Menstral Hygiene in Girls-SCSP-S&M',
+  '2202 02 109 96 00 13-GSS OE (i)-Elecricity,water',
+  '2202 02 109 96 00 13-GSS OE (ii)-Office Exp.',
   'GPF-8009 GPF'
 ],
 };
+
+const MEDICAL_BUDGET_HEADS = [
+  '2202 02 101 94 00 06-Pre Primary-Medical Treatm.',
+  '2202 02 109 87 00 06-Additional Schooling Facilities-Medical Treatment',
+  '2202 02 109 96 00 06-Govt. Sec. Schooling Medical',
+];
 
 const DEFAULT_COPY_TO = `1. PAO-19, Prasad Nagar
 2. DDO SV, East Punjabi Bagh
@@ -94,6 +82,16 @@ class SanctionApp {
       { id: 3, firm: 'AR ENTERPRISES', bill: 'INVOICE NO. 60 Dated 13/04/2026', amt: '1500.00' },
     ];
     this.rowSeq = 10;
+
+        this.medicalRows = [
+      {
+        id: 1,
+        employeeName: '',
+        hospitalName: '',
+        patients: [{ id: 101, relativeName: '', relation: '', amt: '' }],
+      },
+    ];
+    this.medicalRowSeq = 100;
 
     this.outputMode = 'new';
     this.appendedSnapshots = [];
@@ -164,6 +162,168 @@ class SanctionApp {
       localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(snap));
     } catch {
       // ignore
+    }
+  }
+
+
+
+    isMedicalBudget() {
+    return MEDICAL_BUDGET_HEADS.includes(this.budgetHead);
+  }
+
+    renderMedicalBillTable() {
+    const tbody = document.getElementById('bill-table-body');
+    const theadRow = document.getElementById('bill-table-header-row');
+    const rowsCount = document.getElementById('bill-rows-count');
+
+    const totalPatients = this.medicalRows.reduce((sum, g) => sum + g.patients.length, 0);
+    if (rowsCount) {
+      rowsCount.textContent = `${this.medicalRows.length} group${this.medicalRows.length === 1 ? '' : 's'} (${totalPatients} patients)`;
+    }
+
+    if (theadRow) {
+      theadRow.innerHTML = `
+        <th class="p-2 w-10 text-center">#</th>
+        <th class="p-2 w-40">Name of Employee</th>
+        <th class="p-2">Patients (Relative — Relation / Hospital / Amount)</th>
+        <th class="p-2 w-24 text-right">Total (Rs.)</th>
+        <th class="p-2 w-10"></th>
+      `;
+    }
+
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    this.medicalRows.forEach((group, groupIndex) => {
+      const groupTotal = group.patients.reduce((sum, p) => {
+        const v = parseFloat(p.amt);
+        return sum + (isNaN(v) ? 0 : v);
+      }, 0);
+
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-slate-50 transition-colors align-top';
+      tr.innerHTML = `
+        <td class="p-2 text-center text-slate-400 font-mono text-[11px] align-top pt-3">${pad2(groupIndex + 1)}</td>
+        <td class="p-1.5 align-top">
+          <input
+            type="text"
+            placeholder="Employee Name"
+            value="${group.employeeName || ''}"
+            data-medical-group-id="${group.id}"
+            data-field="employeeName"
+            class="medical-input w-full px-2 py-1.5 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none uppercase"
+          />
+        </td>
+        <td class="p-0 align-top">
+          <table class="w-full text-xs border-collapse">
+            <tbody class="medical-patients-tbody" data-medical-group-id="${group.id}">
+              ${group.patients.map((patient) => `
+                <tr class="border-b border-slate-100 last:border-b-0">
+                  <td class="p-1" style="min-width:160px;">
+                    <div class="flex gap-1">
+                      <input
+                        type="text"
+                        placeholder="Relative Name"
+                        value="${patient.relativeName || ''}"
+                        data-medical-group-id="${group.id}"
+                        data-patient-id="${patient.id}"
+                        data-field="relativeName"
+                        class="medical-patient-input flex-1 min-w-[50px] px-1.5 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Relation"
+                        value="${patient.relation || ''}"
+                        data-medical-group-id="${group.id}"
+                        data-patient-id="${patient.id}"
+                        data-field="relation"
+                        class="medical-patient-input w-16 px-1.5 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      />
+                    </div>
+                  </td>
+                  <td class="p-1" style="min-width:120px;">
+                    <input
+                      type="text"
+                      placeholder="Hospital Name"
+                      value="${patient.hospital || ''}"
+                      data-medical-group-id="${group.id}"
+                      data-patient-id="${patient.id}"
+                      data-field="hospital"
+                      class="medical-patient-input w-full px-1.5 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    />
+                  </td>
+                  <td class="p-1 w-24 text-right">
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value="${patient.amt || ''}"
+                      data-medical-group-id="${group.id}"
+                      data-patient-id="${patient.id}"
+                      data-field="amt"
+                      class="medical-patient-input w-full min-w-[70px] px-1.5 py-1 border border-slate-200 rounded text-xs font-mono text-right focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    />
+                  </td>
+                  <td class="p-1 w-6 text-center">
+                    <button
+                      type="button"
+                      data-delete-patient-group="${group.id}"
+                      data-delete-patient-id="${patient.id}"
+                      class="btn-delete-patient text-slate-400 hover:text-red-600 transition-colors p-0.5 cursor-pointer"
+                      title="Delete patient"
+                    >
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <button
+            type="button"
+            data-add-patient-group="${group.id}"
+            class="btn-add-patient mt-1 mb-1 ml-1 text-[10px] text-blue-600 hover:text-blue-800 font-semibold inline-flex items-center gap-0.5 cursor-pointer"
+          >
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+            Add Patient
+          </button>
+        </td>
+        <td class="p-2 text-right font-mono font-bold text-xs align-top pt-3 text-slate-800">Rs. ${formatMoney(groupTotal)}</td>
+        <td class="p-1.5 text-center align-top">
+          <div class="flex flex-col items-center gap-1 pt-1">
+            <button
+              type="button"
+              data-duplicate-medical-id="${group.id}"
+              class="btn-duplicate-medical text-slate-400 hover:text-blue-600 transition-colors p-1 cursor-pointer"
+              title="Duplicate group"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+            </button>
+            <button
+              type="button"
+              data-delete-medical-id="${group.id}"
+              class="btn-delete-medical text-slate-400 hover:text-red-600 transition-colors p-1 cursor-pointer"
+              title="Delete group"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    const total = this.calculateTotal();
+    const formattedTotal = formatMoney(total);
+    const words = numberToWordsIndian(total);
+
+    const formTotalAmt = document.getElementById('form-total-amt');
+    if (formTotalAmt) formTotalAmt.textContent = `Rs. ${formattedTotal}`;
+    const formTotalWords = document.getElementById('form-total-words');
+    if (formTotalWords) formTotalWords.textContent = words;
+
+    if (window.lucide && tbody) {
+      lucide.createIcons({ root: tbody });
     }
   }
 
@@ -284,7 +444,10 @@ class SanctionApp {
           <p>It is certified that the total purchase/repair from the vendor/(s), claimed in the bill does not exceeds Rs. 2.50 Lakh under the head of the bill is prepared.</p>
         </div>
 
-        <div class="cert-signature">HEAD OF SCHOOL</div>
+               <div class="cert-signature">
+          <div style="height:40px;"></div>
+          HEAD OF SCHOOL
+        </div>
       </div>
     `;
   }
@@ -798,6 +961,7 @@ class SanctionApp {
     y += 25;
 
     // Signature
+    y += 14;
     doc.setFont('helvetica', 'bold');
     doc.text('HEAD OF SCHOOL', 190, y, { align: 'right' });
     y += 18;
@@ -952,7 +1116,7 @@ class SanctionApp {
     }
   }
 
-  getSnapshot() {
+    getSnapshot() {
     return {
       schoolId: (this.schoolId || '').trim(),
       phone: (this.phone || '').trim(),
@@ -964,6 +1128,10 @@ class SanctionApp {
       budgetHead: this.budgetHead,
       copyTo: this.copyTo,
       billRows: this.billRows.map((r) => ({ firm: r.firm, bill: r.bill, amt: r.amt })),
+            medicalRows: this.medicalRows.map((g) => ({
+        employeeName: g.employeeName,
+        patients: g.patients.map((p) => ({ relativeName: p.relativeName, relation: p.relation, hospital: p.hospital, amt: p.amt })),
+      })),
     };
   }
 
@@ -978,7 +1146,7 @@ class SanctionApp {
     if (snap.budgetHead) this.budgetHead = snap.budgetHead;
     if (snap.copyTo !== undefined) this.copyTo = snap.copyTo;
 
-    if (snap.billRows && snap.billRows.length > 0) {
+        if (snap.billRows && snap.billRows.length > 0) {
       this.billRows = snap.billRows.map((r) => ({
         id: ++this.rowSeq,
         firm: r.firm || '',
@@ -987,6 +1155,28 @@ class SanctionApp {
       }));
     } else {
       this.billRows = [{ id: ++this.rowSeq, firm: '', bill: '', amt: '' }];
+    }
+
+       if (snap.medicalRows && snap.medicalRows.length > 0) {
+      this.medicalRows = snap.medicalRows.map((g) => ({
+        id: ++this.medicalRowSeq,
+        employeeName: g.employeeName || '',
+        patients: (g.patients || []).map((p) => ({
+          id: ++this.medicalRowSeq,
+          relativeName: p.relativeName || '',
+          relation: p.relation || '',
+          hospital: p.hospital || '',
+          amt: p.amt || '',
+        })),
+      }));
+    } else {
+      this.medicalRows = [
+        {
+          id: ++this.medicalRowSeq,
+          employeeName: '',
+          patients: [{ id: ++this.medicalRowSeq, relativeName: '', relation: '', hospital: '', amt: '' }],
+        },
+      ];
     }
 
     this.populateFormInputs();
@@ -1001,7 +1191,15 @@ class SanctionApp {
     }
   }
 
-  calculateTotal() {
+   calculateTotal() {
+    if (this.isMedicalBudget()) {
+      return this.medicalRows.reduce((sum, group) => {
+        return sum + group.patients.reduce((pSum, p) => {
+          const v = parseFloat(p.amt);
+          return pSum + (isNaN(v) ? 0 : v);
+        }, 0);
+      }, 0);
+    }
     return this.billRows.reduce((sum, r) => {
       const v = parseFloat(r.amt);
       return sum + (isNaN(v) ? 0 : v);
@@ -1033,10 +1231,29 @@ class SanctionApp {
       this.showToast('Budget Head must be selected.', true);
       return false;
     }
-    if (!this.billRows.some((r) => r.firm.trim())) {
-      this.showToast('At least one Firm name is required.', true);
-      return false;
+   
+        if (this.isMedicalBudget()) {
+      if (!this.medicalRows.some((g) => g.employeeName.trim())) {
+        this.showToast('At least one Employee name is required.', true);
+        return false;
+      }
+          if (!this.medicalRows.some((g) => g.patients.some((p) => p.hospital.trim()))) {
+        this.showToast('At least one Hospital name is required.', true);
+        return false;
+      }
+
+      if (!this.medicalRows.some((g) => g.patients.some((p) => p.relativeName.trim()))) {
+        this.showToast('At least one Relative name is required.', true);
+        return false;
+      }
+    } else {
+      if (!this.billRows.some((r) => r.firm.trim())) {
+        this.showToast('At least one Firm name is required.', true);
+        return false;
+      }
     }
+
+
     if (this.calculateTotal() <= 0) {
       this.showToast('Total amount must be greater than zero.', true);
       return false;
@@ -1188,11 +1405,29 @@ renderBudgetHeads() {
   ts.clear(true);
 }
   
- renderBillTableRows() {
+ 
+
+  renderBillTableRows() {
+    if (this.isMedicalBudget()) {
+      this.renderMedicalBillTable();
+      return;
+    }
+
     const tbody = document.getElementById('bill-table-body');
+    const theadRow = document.getElementById('bill-table-header-row');
     const rowsCount = document.getElementById('bill-rows-count');
     if (rowsCount) {
       rowsCount.textContent = `${this.billRows.length} item${this.billRows.length === 1 ? '' : 's'}`;
+    }
+
+    if (theadRow) {
+      theadRow.innerHTML = `
+        <th class="p-2 w-10 text-center">#</th>
+        <th class="p-2">Name of Firm</th>
+        <th class="p-2">Bill No & Date</th>
+        <th class="p-2 w-28 text-right">Amount (Rs.)</th>
+        <th class="p-2 w-8"></th>
+      `;
     }
 
     if (!tbody) return;
@@ -1278,28 +1513,88 @@ if (window.lucide && tbody) {
 
   generatePageHtml(snap, pageIndex = 1, totalPages = 1) {
     const rows = snap.billRows || [];
-    const total = rows.reduce((sum, r) => {
-      const v = parseFloat(r.amt);
-      return sum + (isNaN(v) ? 0 : v);
-    }, 0);
-    const formattedTotal = formatMoney(total);
-    const amtWords = numberToWordsIndian(total);
+    const medicalRows = snap.medicalRows || [];
+    const isMedical = MEDICAL_BUDGET_HEADS.includes(snap.budgetHead);
+
+    let total = 0;
+    let formattedTotal = '';
+    let amtWords = '';
+    let billRowsHtml = '';
+    let tableHeaderHtml = '';
+    let footerColspan = 3;
+
+    if (isMedical && medicalRows.length > 0) {
+      total = medicalRows.reduce((sum, g) => {
+        return sum + g.patients.reduce((pSum, p) => {
+          const v = parseFloat(p.amt);
+          return pSum + (isNaN(v) ? 0 : v);
+        }, 0);
+      }, 0);
+      formattedTotal = formatMoney(total);
+      amtWords = numberToWordsIndian(total);
+      footerColspan = 4;
+
+           let slNo = 1;
+      billRowsHtml = medicalRows.map((group) => {
+        const patientCount = group.patients.length;
+        return group.patients.map((p, pIdx) => {
+          const amtVal = parseFloat(p.amt);
+          const showGroup = pIdx === 0;
+          return `
+            <tr>
+              ${showGroup ? `<td class="border border-slate-500 px-2 py-1 text-center font-bold" rowspan="${patientCount}">${pad2(slNo++)}</td>` : ''}
+              ${showGroup ? `<td class="border border-slate-500 px-2 py-1 font-bold uppercase" rowspan="${patientCount}">${group.employeeName || ''}</td>` : ''}
+              <td class="border border-slate-500 px-2 py-1">${p.relativeName || ''}${p.relation ? ` <span style="font-size:11px;color:#475569;">(${p.relation})</span>` : ''}</td>
+              <td class="border border-slate-500 px-2 py-1">${p.hospital || ''}</td>
+              <td class="border border-slate-500 px-2 py-1 text-right">${formatMoney(isNaN(amtVal) ? 0 : amtVal)}</td>
+            </tr>
+          `;
+        }).join('');
+      }).join('');
+
+           tableHeaderHtml = `
+        <tr class="bg-slate-200 text-black font-bold">
+          <th class="border border-slate-500 px-2 py-1 text-center w-14">SL. NO.</th>
+          <th class="border border-slate-500 px-2 py-1 text-left">NAME OF EMPLOYEE</th>
+          <th class="border border-slate-500 px-2 py-1 text-left">NAME OF RELATIVES (RELATION)</th>
+          <th class="border border-slate-500 px-2 py-1 text-left">NAME OF HOSPITAL</th>
+          <th class="border border-slate-500 px-2 py-1 text-right w-28">AMOUNT (Rs.)</th>
+        </tr>
+      `;
+    } else {
+      total = rows.reduce((sum, r) => {
+        const v = parseFloat(r.amt);
+        return sum + (isNaN(v) ? 0 : v);
+      }, 0);
+      formattedTotal = formatMoney(total);
+      amtWords = numberToWordsIndian(total);
+      footerColspan = 3;
+
+      billRowsHtml = rows.map((r, idx) => {
+        const amtVal = parseFloat(r.amt);
+        return `
+          <tr>
+            <td class="border border-slate-500 px-2 py-1 text-center font-bold">${pad2(idx + 1)}</td>
+            <td class="border border-slate-500 px-2 py-1 font-bold uppercase">${r.firm || ''}</td>
+            <td class="border border-slate-500 px-2 py-1">${r.bill || ''}</td>
+            <td class="border border-slate-500 px-2 py-1 text-right">${formatMoney(isNaN(amtVal) ? 0 : amtVal)}</td>
+          </tr>
+        `;
+      }).join('');
+
+      tableHeaderHtml = `
+        <tr class="bg-slate-200 text-black font-bold">
+          <th class="border border-slate-500 px-2 py-1 text-center w-14">SL. NO.</th>
+          <th class="border border-slate-500 px-2 py-1 text-left">NAME OF FIRM</th>
+          <th class="border border-slate-500 px-2 py-1 text-left">BILL NO &amp; DATE</th>
+          <th class="border border-slate-500 px-2 py-1 text-right w-28">AMOUNT (Rs.)</th>
+        </tr>
+      `;
+    }
+
     const fy = currentFinancialYear();
     const fullRef = refNoFull(snap.refNo);
     const copyLines = (snap.copyTo || '').split('\n').map((l) => l.trim()).filter(Boolean);
-
-    const billRowsHtml = rows.map((r, idx) => {
-      const amtVal = parseFloat(r.amt);
-      return `
-        <tr>
-          <td class="border border-slate-500 px-2 py-1 text-center font-bold">${pad2(idx + 1)}</td>
-          <td class="border border-slate-500 px-2 py-1 font-bold uppercase">${r.firm || ''}</td>
-          <td class="border border-slate-500 px-2 py-1">${r.bill || ''}</td>
-          <td class="border border-slate-500 px-2 py-1 text-right">${formatMoney(isNaN(amtVal) ? 0 : amtVal)}</td>
-        </tr>
-      `;
-    }).join('');
-
     const copyToHtml = copyLines.map((line) => `<li>${line}</li>`).join('');
 
     const badgeHtml = totalPages > 1 ? `
@@ -1356,19 +1651,14 @@ if (window.lucide && tbody) {
 
         <table class="w-full mt-3 border-collapse border border-slate-500 text-[12.5px]">
           <thead>
-            <tr class="bg-slate-200 text-black font-bold">
-              <th class="border border-slate-500 px-2 py-1 text-center w-14">SL. NO.</th>
-              <th class="border border-slate-500 px-2 py-1 text-left">NAME OF FIRM</th>
-              <th class="border border-slate-500 px-2 py-1 text-left">BILL NO &amp; DATE</th>
-              <th class="border border-slate-500 px-2 py-1 text-right w-28">AMOUNT (Rs.)</th>
-            </tr>
+            ${tableHeaderHtml}
           </thead>
           <tbody>
             ${billRowsHtml}
           </tbody>
           <tfoot>
             <tr class="font-bold">
-              <td colspan="3" class="border border-slate-500 px-2 py-1 text-right">TOTAL</td>
+              <td colspan="${footerColspan}" class="border border-slate-500 px-2 py-1 text-right">TOTAL</td>
               <td class="border border-slate-500 px-2 py-1 text-right">${formattedTotal}</td>
             </tr>
           </tfoot>
@@ -1388,7 +1678,7 @@ if (window.lucide && tbody) {
           <strong class="font-bold">Major Head <span>${snap.budgetHead || ''}</span></strong>
         </p>
 
-        <div class="mt-8 flex justify-end">
+        <div class="mt-12 flex justify-end">
           <div class="text-right font-bold text-[13.5px]">
             HEAD OF SCHOOL
           </div>
@@ -1631,9 +1921,10 @@ if (window.lucide && tbody) {
 
     // Budget Head
     const selectHead = document.getElementById('select-budgetHead');
-    if (selectHead) {
+       if (selectHead) {
       selectHead.addEventListener('change', (e) => {
         this.budgetHead = e.target.value;
+        this.renderBillTableRows();
         this.updatePreview();
         this.saveAutosave();
       });
@@ -1687,10 +1978,18 @@ if (window.lucide && tbody) {
     }
 
     // Add Bill Row
-    const btnAddRow = document.getElementById('btn-add-bill-row');
+        const btnAddRow = document.getElementById('btn-add-bill-row');
     if (btnAddRow) {
       btnAddRow.addEventListener('click', () => {
-        this.billRows.push({ id: ++this.rowSeq, firm: '', bill: '', amt: '' });
+        if (this.isMedicalBudget()) {
+            this.medicalRows.push({
+            id: ++this.medicalRowSeq,
+            employeeName: '',
+            patients: [{ id: ++this.medicalRowSeq, relativeName: '', relation: '', hospital: '', amt: '' }],
+          });
+        } else {
+          this.billRows.push({ id: ++this.rowSeq, firm: '', bill: '', amt: '' });
+        }
         this.renderBillTableRows();
         this.updatePreview();
         this.saveAutosave();
@@ -1700,7 +1999,7 @@ if (window.lucide && tbody) {
     // Bill Table Input & Delete Event Delegation
     const billTableBody = document.getElementById('bill-table-body');
     if (billTableBody) {
-      billTableBody.addEventListener('input', (e) => {
+            billTableBody.addEventListener('input', (e) => {
         if (e.target.classList.contains('bill-input')) {
           const rowId = parseInt(e.target.dataset.rowId, 10);
           const field = e.target.dataset.field;
@@ -1716,9 +2015,46 @@ if (window.lucide && tbody) {
             this.saveAutosave();
           }
         }
+
+        if (e.target.classList.contains('medical-input')) {
+          const groupId = parseInt(e.target.dataset.medicalGroupId, 10);
+          const field = e.target.dataset.field;
+          const group = this.medicalRows.find((g) => g.id === groupId);
+          if (group) {
+            group[field] = e.target.value;
+            this.updatePreview();
+            this.saveAutosave();
+          }
+        }
+
+        if (e.target.classList.contains('medical-patient-input')) {
+          const groupId = parseInt(e.target.dataset.medicalGroupId, 10);
+          const patientId = parseInt(e.target.dataset.patientId, 10);
+          const field = e.target.dataset.field;
+          const group = this.medicalRows.find((g) => g.id === groupId);
+          if (group) {
+            const patient = group.patients.find((p) => p.id === patientId);
+            if (patient) {
+              patient[field] = e.target.value;
+              const groupTotal = group.patients.reduce((sum, p) => {
+                const v = parseFloat(p.amt);
+                return sum + (isNaN(v) ? 0 : v);
+              }, 0);
+              const totalCell = e.target.closest('table').closest('td').nextElementSibling;
+              if (totalCell) totalCell.textContent = `Rs. ${formatMoney(groupTotal)}`;
+              const total = this.calculateTotal();
+              const formTotalAmt = document.getElementById('form-total-amt');
+              if (formTotalAmt) formTotalAmt.textContent = `Rs. ${formatMoney(total)}`;
+              const formTotalWords = document.getElementById('form-total-words');
+              if (formTotalWords) formTotalWords.textContent = numberToWordsIndian(total);
+              this.updatePreview();
+              this.saveAutosave();
+            }
+          }
+        }
       });
 
-      billTableBody.addEventListener('click', (e) => {
+            billTableBody.addEventListener('click', (e) => {
         const duplicateBtn = e.target.closest('.btn-duplicate-row');
         if (duplicateBtn) {
           const rowId = parseInt(duplicateBtn.dataset.duplicateRowId, 10);
@@ -1745,6 +2081,77 @@ if (window.lucide && tbody) {
           this.renderBillTableRows();
           this.updatePreview();
           this.saveAutosave();
+          return;
+        }
+
+        const addPatientBtn = e.target.closest('.btn-add-patient');
+        if (addPatientBtn) {
+          const groupId = parseInt(addPatientBtn.dataset.addPatientGroup, 10);
+          const group = this.medicalRows.find((g) => g.id === groupId);
+          if (group) {
+            group.patients.push({ id: ++this.medicalRowSeq, relativeName: '', relation: '', amt: '' });
+            this.renderBillTableRows();
+            this.updatePreview();
+            this.saveAutosave();
+          }
+          return;
+        }
+
+        const deletePatientBtn = e.target.closest('.btn-delete-patient');
+        if (deletePatientBtn) {
+          const groupId = parseInt(deletePatientBtn.dataset.deletePatientGroup, 10);
+          const patientId = parseInt(deletePatientBtn.dataset.deletePatientId, 10);
+          const group = this.medicalRows.find((g) => g.id === groupId);
+          if (group) {
+            if (group.patients.length <= 1) {
+              this.showToast('At least one patient is required per group.', true);
+              return;
+            }
+            group.patients = group.patients.filter((p) => p.id !== patientId);
+            this.renderBillTableRows();
+            this.updatePreview();
+            this.saveAutosave();
+          }
+          return;
+        }
+
+        const dupMedicalBtn = e.target.closest('.btn-duplicate-medical');
+        if (dupMedicalBtn) {
+          const groupId = parseInt(dupMedicalBtn.dataset.duplicateMedicalId, 10);
+          const index = this.medicalRows.findIndex((g) => g.id === groupId);
+          if (index !== -1) {
+            const source = this.medicalRows[index];
+              const newGroup = {
+              id: ++this.medicalRowSeq,
+              employeeName: source.employeeName,
+              patients: source.patients.map((p) => ({
+                id: ++this.medicalRowSeq,
+                relativeName: p.relativeName,
+                relation: p.relation,
+                hospital: p.hospital,
+                amt: p.amt,
+              })),
+            };
+            this.medicalRows.splice(index + 1, 0, newGroup);
+            this.renderBillTableRows();
+            this.updatePreview();
+            this.saveAutosave();
+          }
+          return;
+        }
+
+        const delMedicalBtn = e.target.closest('.btn-delete-medical');
+        if (delMedicalBtn) {
+          const groupId = parseInt(delMedicalBtn.dataset.deleteMedicalId, 10);
+          if (this.medicalRows.length <= 1) {
+            this.showToast('At least one group is required.', true);
+            return;
+          }
+          this.medicalRows = this.medicalRows.filter((g) => g.id !== groupId);
+          this.renderBillTableRows();
+          this.updatePreview();
+          this.saveAutosave();
+          return;
         }
       });
     }
