@@ -167,6 +167,791 @@ class SanctionApp {
     }
   }
 
+    /* ---------- Certificates Methods ---------- */
+
+  initCertificates() {
+    const fy = currentFinancialYear();
+    this.certRefNo = this.refNo || '';
+    this.certDate = this.sanctionDate || todayStr();
+    this.certBillNo = '';
+    this.certBillDate = '';
+
+    const prefixEl = document.getElementById('cert-prefix-fy');
+    if (prefixEl) prefixEl.textContent = `SV/EPB/${fy.split('-')[0]}/`;
+
+    const refInput = document.getElementById('cert-input-refNo');
+    const dateInput = document.getElementById('cert-input-date');
+    const billNoInput = document.getElementById('cert-input-billNo');
+    const billDateInput = document.getElementById('cert-input-billDate');
+
+    if (refInput) refInput.value = this.certRefNo;
+    if (dateInput) dateInput.value = this.certDate;
+    if (billNoInput) { billNoInput.value = ''; }
+    if (billDateInput) { billDateInput.value = ''; }
+
+    this.updateCertificatesPreview();
+  }
+
+  updateCertificatesPreview() {
+    const box = document.getElementById('cert-preview-box');
+    if (!box) return;
+
+    const fy = currentFinancialYear();
+    const fullRef = refNoFull(this.certRefNo);
+    const billNoDisplay = this.certBillNo ? `CB-${this.certBillNo}` : 'CB-__________';
+    const billDateDisplay = this.certBillDate || '__________';
+
+    box.innerHTML = `
+      <style>
+        .cert-page { font-family:'Tinos','Times New Roman',serif; }
+        .cert-header { display:flex; justify-content:space-between; font-weight:bold; font-size:12px; }
+        .cert-school { text-align:center; margin-top:8px; }
+        .cert-school h2 { font-size:17px; font-weight:bold; text-transform:uppercase; margin:0; }
+        .cert-school p { font-size:13px; margin:2px 0 0; }
+        .cert-ref { display:flex; justify-content:space-between; font-weight:bold; font-size:12px; margin-top:10px; }
+        .cert-title { text-align:center; margin-top:12px; font-size:15px; font-weight:bold; text-decoration:underline; text-transform:uppercase; }
+        .cert-body { margin-top:10px; font-size:12px; text-align:justify; line-height:1.5; }
+        .cert-body p { margin:0 0 6px; }
+        .cert-body ol { margin:4px 0 0 18px; padding:0; }
+        .cert-body ol li { margin-bottom:3px; }
+        .cert-quote { margin:6px 0 6px 14px; font-style:italic; }
+        .cert-bold { font-weight:bold; }
+        .cert-signature { margin-top:28px; text-align:right; font-weight:bold; font-size:12.5px; }
+        .cert-copy { margin-top:12px; font-size:11.5px; }
+        .page-sep { border-top:2px dashed #cbd5e1; margin:14px 0; }
+      </style>
+
+      <!-- PAGE 1: UNDERTAKING -->
+      <div class="cert-page">
+        <div class="cert-header">
+          <div>SCHOOL ID -- ${this.schoolId || ''}</div>
+          <div>PHONE -- ${this.phone || ''}</div>
+        </div>
+        <div class="cert-school">
+          <h2>${this.schoolName || ''}</h2>
+          <p>${this.address || ''}</p>
+        </div>
+        <div class="cert-ref">
+          <div>Ref. No. ${fullRef}</div>
+          <div>Dated: ${this.certDate || todayStr()}</div>
+        </div>
+
+        <div class="cert-body" style="margin-top:18px;">
+          <p><strong>To,</strong></p>
+          <p>PAO -19,<br>Prasad Nagar, Delhi</p>
+          <p style="margin-top:10px;"><strong>Sub -- Undertaking in respect of Bill No. ${billNoDisplay} Dated ${billDateDisplay}</strong></p>
+          <p style="margin-top:10px;"><strong>Sir,</strong></p>
+          <p>With reference to the aforesaid bill we undertake that:--</p>
+          <ol>
+            <li>The goods/item was procured in emergent circumstances.</li>
+            <li>The goods/items were procured in accordance with rule 149 of GFR.</li>
+            <li>All the codal formalities have been completed.</li>
+            <li>2017 and certificate in accordance with rule 149 is given as under.</li>
+          </ol>
+          <p class="cert-quote">"I am satisfied that those goods purchased are of quality and Specification and had been purchased from the reasonable price".</p>
+          <p style="margin-top:8px;"><span class="cert-bold">A. GFR RULE 154</span> purchases of goods without quotation</p>
+          <p class="cert-quote">"I am satisfied that these goods purchased are of that requisites quality and specification and have been purchased from a reliable supplier at reasonable price."</p>
+          <p style="margin-top:8px;"><span class="cert-bold">A. GFR RULE 155</span> purchased of goods by purchase committee.</p>
+          <p class="cert-quote">"Certified that we, member of that purchase committee are jointly and individually satisfied that goods, recommended for purchase is of the requisites specification and quality priced at the goods recommended is reliable and competent to supply the goods in question, and it is not debarred by department or commerce or Ministry/Department concerned.</p>
+          <p style="margin-top:10px;" class="cert-bold">All the codal formalities have been completed according to GFR.</p>
+        </div>
+      </div>
+
+      <div class="page-sep"></div>
+
+      <!-- PAGE 2: CERTIFICATE -->
+      <div class="cert-page">
+        <div class="cert-header">
+          <div>SCHOOL ID -- ${this.schoolId || ''}</div>
+          <div>PHONE -- ${this.phone || ''}</div>
+        </div>
+        <div class="cert-school">
+          <h2>${this.schoolName || ''}</h2>
+          <p>${this.address || ''}</p>
+        </div>
+        <div class="cert-ref">
+          <div>Ref. No. ${fullRef}</div>
+          <div>Dated: ${this.certDate || todayStr()}</div>
+        </div>
+
+        <div class="cert-title">CERTIFICATE</div>
+
+        <div class="cert-body" style="margin-top:14px;">
+          <p>Certified that services/product/work nature claimed in this bill are not available on GEM Website hence the bill may be accepted as this work is to be completed in time bound manner though the item has been purchased from GEM registered dealer.</p>
+          <p>All the codal formalities has been observed.</p>
+          <p>Kindly accept the bill for payment.</p>
+          <p style="margin-top:16px;" class="cert-bold">TO WHOM IT MAY CONCERN</p>
+          <p>It is certified that the total purchase/repair from the vendor/(s), claimed in the bill does not exceeds Rs. 2.50 Lakh under the head of the bill is prepared.</p>
+        </div>
+
+        <div class="cert-signature">HEAD OF SCHOOL</div>
+      </div>
+    `;
+  }
+
+  validateCertificatesForm() {
+    if (!this.certRefNo.trim()) {
+      this.showToast('Ref No. is required.', true);
+      return false;
+    }
+    if (!isValidDate(this.certDate)) {
+      this.showToast('Date must be valid DD/MM/YYYY.', true);
+      return false;
+    }
+    if (!this.certBillNo.trim()) {
+      this.showToast('Bill No. is required.', true);
+      return false;
+    }
+    if (!this.certBillDate.trim()) {
+      this.showToast('Bill Date is required.', true);
+      return false;
+    }
+    return true;
+  }
+
+  async generateCertificatesPdf() {
+    if (!this.validateCertificatesForm()) return;
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+    const fy = currentFinancialYear();
+    const fullRef = refNoFull(this.certRefNo);
+    const billNoDisplay = `CB-${this.certBillNo}`;
+    const billDateDisplay = this.certBillDate;
+
+    const drawHeader = (startY) => {
+      let y = startY;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`SCHOOL ID -- ${this.schoolId || ''}`, 20, y);
+      doc.text(`PHONE -- ${this.phone || ''}`, 190, y, { align: 'right' });
+      y += 8;
+
+      doc.setFontSize(15);
+      doc.text(this.schoolName || '', 105, y, { align: 'center' });
+      y += 6;
+
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.text(this.address || '', 105, y, { align: 'center' });
+      y += 12;
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text(`Ref. No. ${fullRef}`, 20, y);
+      doc.text(`Dated: ${this.certDate}`, 190, y, { align: 'right' });
+      y += 10;
+      return y;
+    };
+
+    // ==================== PAGE 1 ====================
+    let y = drawHeader(22);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.text('To,', 20, y); y += 6;
+    doc.text('PAO -19,', 20, y); y += 6;
+    doc.text('Prasad Nagar, Delhi', 20, y); y += 10;
+
+    doc.setFont('helvetica', 'bold');
+    const subj = `Sub -- Undertaking in respect of Bill No. ${billNoDisplay} Dated ${billDateDisplay}`;
+    const splitSubj = doc.splitTextToSize(subj, 170);
+    doc.text(splitSubj, 20, y);
+    y += (splitSubj.length * 5) + 4;
+
+    doc.text('Sir,', 20, y); y += 6;
+    doc.setFont('helvetica', 'normal');
+    doc.text('With reference to the aforesaid bill we undertake that:--', 20, y);
+    y += 6;
+
+    const points = [
+      '1. The goods/item was procured in emergent circumstances.',
+      '2. The goods/items were procured in accordance with rule 149 of GFR.',
+      '3. All the codal formalities have been completed.',
+      '4. 2017 and certificate in accordance with rule 149 is given as under.'
+    ];
+    points.forEach(pt => {
+      const s = doc.splitTextToSize(pt, 165);
+      doc.text(s, 25, y);
+      y += (s.length * 5) + 2;
+    });
+    y += 2;
+
+    doc.setFont('helvetica', 'italic');
+    const q1 = '"I am satisfied that those goods purchased are of quality and Specification and had been purchased from the reasonable price".';
+    const sq1 = doc.splitTextToSize(q1, 160);
+    doc.text(sq1, 25, y);
+    y += (sq1.length * 5) + 4;
+    doc.setFont('helvetica', 'normal');
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('A. GFR RULE 154', 20, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text('purchases of goods without quotation', 62, y);
+    y += 5;
+    const gfr154 = '"I am satisfied that these goods purchased are of that requisites quality and specification and have been purchased from a reliable supplier at reasonable price."';
+    const s154 = doc.splitTextToSize(gfr154, 160);
+    doc.text(s154, 25, y);
+    y += (s154.length * 5) + 4;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('A. GFR RULE 155', 20, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text('purchased of goods by purchase committee.', 62, y);
+    y += 5;
+    const gfr155 = '"Certified that we, member of that purchase committee are jointly and individually satisfied that goods, recommended for purchase is of the requisites specification and quality priced at the goods recommended is reliable and competent to supply the goods in question, and it is not debarred by department or commerce or Ministry/Department concerned.';
+    const s155 = doc.splitTextToSize(gfr155, 160);
+    doc.text(s155, 25, y);
+    y += (s155.length * 5) + 6;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('All the codal formalities have been completed according to GFR.', 20, y);
+
+    // ==================== PAGE 2 ====================
+    doc.addPage();
+    y = drawHeader(22);
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('CERTIFICATE', 105, y, { align: 'center' });
+    doc.setLineWidth(0.4);
+    doc.line(82, y + 1, 128, y + 1);
+    y += 10;
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const certBody = 'Certified that services/product/work nature claimed in this bill are not available on GEM Website hence the bill may be accepted as this work is to be completed in time bound manner though the item has been purchased from GEM registered dealer.';
+    const scb = doc.splitTextToSize(certBody, 170);
+    doc.text(scb, 20, y);
+    y += (scb.length * 5.2) + 3;
+
+    doc.text('All the codal formalities has been observed.', 20, y);
+    y += 7;
+
+    doc.text('Kindly accept the bill for payment.', 20, y);
+    y += 12;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('TO WHOM IT MAY CONCERN', 20, y);
+    y += 7;
+
+    doc.setFont('helvetica', 'normal');
+    const concern = 'It is certified that the total purchase/repair from the vendor/(s), claimed in the bill does not exceeds Rs. 2.50 Lakh under the head of the bill is prepared.';
+    const sCon = doc.splitTextToSize(concern, 170);
+    doc.text(sCon, 20, y);
+    y += (sCon.length * 5.2) + 20;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('HEAD OF SCHOOL', 190, y, { align: 'right' });
+
+    const filename = `Certificates_${this.certRefNo}_${this.certDate.replace(/\//g, '-')}.pdf`;
+    doc.save(filename);
+    this.showToast('Certificates PDF downloaded successfully!');
+  }
+
+  bindCertificatesEvents() {
+    const modal = document.getElementById('cert-modal');
+    const btnOpen = document.getElementById('btn-open-cert-modal');
+    const btnClose = document.getElementById('btn-close-cert-modal');
+
+    if (btnOpen && modal) {
+      btnOpen.addEventListener('click', () => {
+        this.initCertificates();
+        modal.classList.remove('hidden');
+      });
+    }
+    if (btnClose && modal) {
+      btnClose.addEventListener('click', () => modal.classList.add('hidden'));
+    }
+    if (modal) {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.classList.add('hidden');
+      });
+    }
+
+    const inputRef = document.getElementById('cert-input-refNo');
+    const inputDate = document.getElementById('cert-input-date');
+    const inputBillNo = document.getElementById('cert-input-billNo');
+    const inputBillDate = document.getElementById('cert-input-billDate');
+    const btnToday = document.getElementById('cert-btn-today');
+
+    if (inputRef) {
+      inputRef.addEventListener('input', (e) => {
+        this.certRefNo = e.target.value;
+        this.updateCertificatesPreview();
+      });
+    }
+    if (inputDate) {
+      inputDate.addEventListener('input', (e) => {
+        this.certDate = e.target.value;
+        this.updateCertificatesPreview();
+      });
+    }
+    if (btnToday && inputDate) {
+      btnToday.addEventListener('click', () => {
+        this.certDate = todayStr();
+        inputDate.value = this.certDate;
+        this.updateCertificatesPreview();
+      });
+    }
+    if (inputBillNo) {
+      inputBillNo.addEventListener('input', (e) => {
+        this.certBillNo = e.target.value;
+        this.updateCertificatesPreview();
+      });
+    }
+    if (inputBillDate) {
+      inputBillDate.addEventListener('input', (e) => {
+        this.certBillDate = e.target.value;
+        this.updateCertificatesPreview();
+      });
+    }
+
+    const btnPrint = document.getElementById('cert-btn-print');
+    if (btnPrint) {
+      btnPrint.addEventListener('click', () => {
+        if (!this.validateCertificatesForm()) return;
+        const fy = currentFinancialYear();
+        const fullRef = refNoFull(this.certRefNo);
+        const billNoDisplay = `CB-${this.certBillNo}`;
+        const billDateDisplay = this.certBillDate;
+
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+          <html>
+          <head>
+            <title>Certificates & Undertaking</title>
+            <style>
+              @page { size: A4; margin: 18mm; }
+              body { font-family: 'Times New Roman', serif; margin: 0; padding: 18mm; color: #000; font-size: 12px; line-height: 1.5; }
+              .header { display: flex; justify-content: space-between; font-weight: bold; font-size: 12px; }
+              .school { text-align: center; margin-top: 8px; }
+              .school h2 { font-size: 17px; font-weight: bold; text-transform: uppercase; margin: 0; }
+              .school p { font-size: 13px; margin: 2px 0 0; }
+              .ref-date { display: flex; justify-content: space-between; font-weight: bold; font-size: 12px; margin-top: 10px; }
+              .title { text-align: center; margin-top: 14px; font-size: 15px; font-weight: bold; text-decoration: underline; text-transform: uppercase; }
+              .body { margin-top: 10px; text-align: justify; }
+              .body p { margin: 0 0 6px; }
+              .body ol { margin: 4px 0 0 18px; padding: 0; }
+              .body ol li { margin-bottom: 3px; }
+              .quote { margin: 6px 0 6px 14px; font-style: italic; }
+              .bold { font-weight: bold; }
+              .signature { margin-top: 32px; text-align: right; font-weight: bold; font-size: 12.5px; }
+              .page-break { page-break-after: always; }
+            </style>
+          </head>
+          <body>
+            <!-- Page 1 -->
+            <div class="header">
+              <div>SCHOOL ID -- ${this.schoolId || ''}</div>
+              <div>PHONE -- ${this.phone || ''}</div>
+            </div>
+            <div class="school">
+              <h2>${this.schoolName || ''}</h2>
+              <p>${this.address || ''}</p>
+            </div>
+            <div class="ref-date">
+              <div>Ref. No. ${fullRef}</div>
+              <div>Dated: ${this.certDate}</div>
+            </div>
+            <div class="body" style="margin-top:18px;">
+              <p><strong>To,</strong></p>
+              <p>PAO -19,<br>Prasad Nagar, Delhi</p>
+              <p style="margin-top:10px;"><strong>Sub -- Undertaking in respect of Bill No. ${billNoDisplay} Dated ${billDateDisplay}</strong></p>
+              <p style="margin-top:10px;"><strong>Sir,</strong></p>
+              <p>With reference to the aforesaid bill we undertake that:--</p>
+              <ol>
+                <li>The goods/item was procured in emergent circumstances.</li>
+                <li>The goods/items were procured in accordance with rule 149 of GFR.</li>
+                <li>All the codal formalities have been completed.</li>
+                <li>2017 and certificate in accordance with rule 149 is given as under.</li>
+              </ol>
+              <p class="quote">"I am satisfied that those goods purchased are of quality and Specification and had been purchased from the reasonable price".</p>
+              <p style="margin-top:8px;"><span class="bold">A. GFR RULE 154</span> purchases of goods without quotation</p>
+              <p class="quote">"I am satisfied that these goods purchased are of that requisites quality and specification and have been purchased from a reliable supplier at reasonable price."</p>
+              <p style="margin-top:8px;"><span class="bold">A. GFR RULE 155</span> purchased of goods by purchase committee.</p>
+              <p class="quote">"Certified that we, member of that purchase committee are jointly and individually satisfied that goods, recommended for purchase is of the requisites specification and quality priced at the goods recommended is reliable and competent to supply the goods in question, and it is not debarred by department or commerce or Ministry/Department concerned.</p>
+              <p style="margin-top:10px;" class="bold">All the codal formalities have been completed according to GFR.</p>
+            </div>
+
+            <div class="page-break"></div>
+
+            <!-- Page 2 -->
+            <div class="header">
+              <div>SCHOOL ID -- ${this.schoolId || ''}</div>
+              <div>PHONE -- ${this.phone || ''}</div>
+            </div>
+            <div class="school">
+              <h2>${this.schoolName || ''}</h2>
+              <p>${this.address || ''}</p>
+            </div>
+            <div class="ref-date">
+              <div>Ref. No. ${fullRef}</div>
+              <div>Dated: ${this.certDate}</div>
+            </div>
+            <div class="title">CERTIFICATE</div>
+            <div class="body" style="margin-top:14px;">
+              <p>Certified that services/product/work nature claimed in this bill are not available on GEM Website hence the bill may be accepted as this work is to be completed in time bound manner though the item has been purchased from GEM registered dealer.</p>
+              <p>All the codal formalities has been observed.</p>
+              <p>Kindly accept the bill for payment.</p>
+              <p style="margin-top:16px;" class="bold">TO WHOM IT MAY CONCERN</p>
+              <p>It is certified that the total purchase/repair from the vendor/(s), claimed in the bill does not exceeds Rs. 2.50 Lakh under the head of the bill is prepared.</p>
+            </div>
+            <div class="signature">HEAD OF SCHOOL</div>
+          </body>
+          </html>
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => printWindow.print(), 300);
+      });
+    }
+
+    const btnDownload = document.getElementById('cert-btn-download');
+    if (btnDownload) {
+      btnDownload.addEventListener('click', () => this.generateCertificatesPdf());
+    }
+  }
+
+
+    /* ---------- Guest Teacher Sanction Methods ---------- */
+
+  initGuestTeacher() {
+    const fy = currentFinancialYear();
+    // Sync with main app state
+    this.guestRefNo = this.refNo || '';
+    this.guestDate = this.sanctionDate || todayStr();
+    this.guestAmount = '';
+    this.guestMonth = '';
+
+    // Set prefix
+    const prefixEl = document.getElementById('guest-prefix-fy');
+    if (prefixEl) prefixEl.textContent = `SV/EPB/${fy.split('-')[0]}/`;
+
+    // Set inputs
+    const refInput = document.getElementById('guest-input-refNo');
+    const dateInput = document.getElementById('guest-input-date');
+    const amtInput = document.getElementById('guest-input-amount');
+    const monthInput = document.getElementById('guest-input-month');
+
+    if (refInput) refInput.value = this.guestRefNo;
+    if (dateInput) dateInput.value = this.guestDate;
+    if (amtInput) { amtInput.value = ''; }
+    if (monthInput) { monthInput.value = ''; }
+
+    this.updateGuestPreview();
+  }
+
+  updateGuestPreview() {
+    const box = document.getElementById('guest-preview-box');
+    if (!box) return;
+
+    const fy = currentFinancialYear();
+    const fullRef = refNoFull(this.guestRefNo);
+    const amt = parseFloat(this.guestAmount) || 0;
+    const amtWords = numberToWordsIndian(amt);
+    const amtFormatted = formatMoney(amt);
+
+    box.innerHTML = `
+      <div style="font-family:'Tinos','Times New Roman',serif;">
+        <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:13px;">
+          <div>SCHOOL ID - ${this.schoolId || ''}</div>
+          <div>PHONE - ${this.phone || ''}</div>
+        </div>
+        <div style="text-align:center;margin-top:10px;">
+          <div style="font-size:19px;font-weight:bold;text-transform:uppercase;">${this.schoolName || ''}</div>
+          <div style="font-size:14px;margin-top:2px;">${this.address || ''}</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:13px;margin-top:12px;">
+          <div>Ref. No. ${fullRef}</div>
+          <div>Dated: ${this.guestDate || todayStr()}</div>
+        </div>
+        <div style="text-align:center;margin-top:14px;">
+          <span style="font-size:16px;font-weight:bold;text-decoration:underline;text-transform:uppercase;">SANCTION ORDER</span>
+        </div>
+        <p style="margin-top:12px;font-size:13.5px;text-align:justify;line-height:1.5;">
+          Sanction is hereby accorded for incurring expenditure for an amount of 
+          <strong>Rs.${amtFormatted}/-</strong> 
+          (<strong>Rs. ${amtWords} only</strong>) 
+          for making payment for additional schooling facility- Wages in R/O the staff (Guest Teachers for the month of 
+          <strong>${this.guestMonth || '__________'}</strong>).
+        </p>
+        <p style="margin-top:10px;font-size:12.5px;"><strong>Major Head 220202109870002 ASF Wages</strong></p>
+        <p style="margin-top:8px;font-size:12.5px;text-align:justify;line-height:1.5;">
+          This Sanction has been accorded in exercise of the powers delegated by the finance department Govt. NCT of Delhi and in consultation with account functionaries of the Department.
+        </p>
+        <p style="margin-top:8px;font-size:12.5px;text-align:justify;line-height:1.5;">
+          The expenditure involved on this account would be debatable to the under mentioned Head of Account the <strong>year ${fy}</strong> under demand for Grant No.6
+        </p>
+        <p style="margin-top:8px;font-size:12.5px;"><strong>Major Head 220202109870002 ASF Wages</strong></p>
+        <div style="margin-top:32px;text-align:right;font-weight:bold;font-size:13.5px;">HEAD OF SCHOOL</div>
+        <div style="margin-top:16px;font-size:12.5px;">
+          <div style="font-weight:bold;">Copy to:-</div>
+          <ol style="margin:4px 0 0 16px;padding:0;">
+            <li>PAO-19, Prasad Nagar</li>
+            <li>DDO SV, East Punjabi Bagh</li>
+            <li>AAO Audit cell, Dte. Of Edn.</li>
+            <li>Guard File</li>
+          </ol>
+        </div>
+      </div>
+    `;
+  }
+
+  validateGuestForm() {
+    if (!this.guestRefNo.trim()) {
+      this.showToast('Sanction No. is required.', true);
+      return false;
+    }
+    if (!isValidDate(this.guestDate)) {
+      this.showToast('Date must be valid DD/MM/YYYY.', true);
+      return false;
+    }
+    const amt = parseFloat(this.guestAmount);
+    if (!amt || amt <= 0) {
+      this.showToast('Valid amount is required.', true);
+      return false;
+    }
+    if (!this.guestMonth.trim()) {
+      this.showToast('Month & Year is required.', true);
+      return false;
+    }
+    return true;
+  }
+
+  async generateGuestPdf() {
+    if (!this.validateGuestForm()) return;
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+    const fy = currentFinancialYear();
+    const fullRef = refNoFull(this.guestRefNo);
+    const amt = parseFloat(this.guestAmount) || 0;
+    const amtWords = numberToWordsIndian(amt);
+    const amtFormatted = formatMoney(amt);
+
+    let y = 22;
+
+    // Header
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`SCHOOL ID - ${this.schoolId || ''}`, 20, y);
+    doc.text(`PHONE - ${this.phone || ''}`, 190, y, { align: 'right' });
+    y += 8;
+
+    // School Name
+    doc.setFontSize(15);
+    doc.text(this.schoolName || '', 105, y, { align: 'center' });
+    y += 6;
+
+    // Address
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(this.address || '', 105, y, { align: 'center' });
+    y += 12;
+
+    // Ref & Date
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text(`Ref. No. ${fullRef}`, 20, y);
+    doc.text(`Dated: ${this.guestDate}`, 190, y, { align: 'right' });
+    y += 10;
+
+    // Title
+    doc.setFontSize(14);
+    doc.text('SANCTION ORDER', 105, y, { align: 'center' });
+    doc.setLineWidth(0.4);
+    doc.line(82, y + 1, 128, y + 1);
+    y += 10;
+
+    // Body
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const bodyText = `Sanction is hereby accorded for incurring expenditure for an amount of Rs.${amtFormatted}/- (Rs. ${amtWords} only) for making payment for additional schooling facility- Wages in R/O the staff (Guest Teachers for the month of ${this.guestMonth}).`;
+    const splitBody = doc.splitTextToSize(bodyText, 170);
+    doc.text(splitBody, 20, y);
+    y += (splitBody.length * 5.2) + 3;
+
+    // Major Head 1
+    doc.setFont('helvetica', 'bold');
+    doc.text('Major Head 220202109870002 ASF Wages', 20, y);
+    y += 7;
+
+    // Clause 1
+    doc.setFont('helvetica', 'normal');
+    const clause1 = 'This Sanction has been accorded in exercise of the powers delegated by the finance department Govt. NCT of Delhi and in consultation with account functionaries of the Department.';
+    const splitC1 = doc.splitTextToSize(clause1, 170);
+    doc.text(splitC1, 20, y);
+    y += (splitC1.length * 5.2) + 3;
+
+    // Clause 2
+    const clause2 = `The expenditure involved on this account would be debatable to the under mentioned Head of Account the year ${fy} under demand for Grant No.6`;
+    const splitC2 = doc.splitTextToSize(clause2, 170);
+    doc.text(splitC2, 20, y);
+    y += (splitC2.length * 5.2) + 3;
+
+    // Major Head 2
+    doc.setFont('helvetica', 'bold');
+    doc.text('Major Head 220202109870002 ASF Wages', 20, y);
+    y += 25;
+
+    // Signature
+    doc.setFont('helvetica', 'bold');
+    doc.text('HEAD OF SCHOOL', 190, y, { align: 'right' });
+    y += 18;
+
+    // Copy To
+    doc.setFontSize(10);
+    doc.text('Copy to:-', 20, y);
+    y += 6;
+    doc.setFont('helvetica', 'normal');
+    doc.text('1. PAO-19, Prasad Nagar', 25, y); y += 5;
+    doc.text('2. DDO SV, East Punjabi Bagh', 25, y); y += 5;
+    doc.text('3. AAO Audit cell, Dte. Of Edn.', 25, y); y += 5;
+    doc.text('4. Guard File', 25, y);
+
+    const filename = `Guest_Teacher_Sanction_${this.guestRefNo}_${this.guestDate.replace(/\//g, '-')}.pdf`;
+    doc.save(filename);
+    this.showToast('Guest Teacher PDF downloaded successfully!');
+  }
+
+  bindGuestEvents() {
+    const modal = document.getElementById('guest-modal');
+    const btnOpen = document.getElementById('btn-open-guest-modal');
+    const btnClose = document.getElementById('btn-close-guest-modal');
+
+    if (btnOpen && modal) {
+      btnOpen.addEventListener('click', () => {
+        this.initGuestTeacher();
+        modal.classList.remove('hidden');
+      });
+    }
+    if (btnClose && modal) {
+      btnClose.addEventListener('click', () => modal.classList.add('hidden'));
+    }
+    if (modal) {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.classList.add('hidden');
+      });
+    }
+
+    const inputRef = document.getElementById('guest-input-refNo');
+    const inputDate = document.getElementById('guest-input-date');
+    const inputAmt = document.getElementById('guest-input-amount');
+    const inputMonth = document.getElementById('guest-input-month');
+    const btnToday = document.getElementById('guest-btn-today');
+
+    if (inputRef) {
+      inputRef.addEventListener('input', (e) => {
+        this.guestRefNo = e.target.value;
+        this.updateGuestPreview();
+      });
+    }
+    if (inputDate) {
+      inputDate.addEventListener('input', (e) => {
+        this.guestDate = e.target.value;
+        this.updateGuestPreview();
+      });
+    }
+    if (btnToday && inputDate) {
+      btnToday.addEventListener('click', () => {
+        this.guestDate = todayStr();
+        inputDate.value = this.guestDate;
+        this.updateGuestPreview();
+      });
+    }
+    if (inputAmt) {
+      inputAmt.addEventListener('input', (e) => {
+        this.guestAmount = e.target.value;
+        this.updateGuestPreview();
+      });
+    }
+    if (inputMonth) {
+      inputMonth.addEventListener('input', (e) => {
+        this.guestMonth = e.target.value.toUpperCase();
+        this.updateGuestPreview();
+      });
+    }
+
+    const btnPrint = document.getElementById('guest-btn-print');
+    if (btnPrint) {
+      btnPrint.addEventListener('click', () => {
+        if (!this.validateGuestForm()) return;
+        const fy = currentFinancialYear();
+        const fullRef = refNoFull(this.guestRefNo);
+        const amt = parseFloat(this.guestAmount) || 0;
+        const amtWords = numberToWordsIndian(amt);
+        const amtFormatted = formatMoney(amt);
+
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+          <html>
+          <head>
+            <title>Guest Teacher Sanction Order</title>
+            <style>
+              @page { size: A4; margin: 18mm; }
+              body { font-family: 'Times New Roman', serif; margin: 0; padding: 18mm; color: #000; }
+              .header { display: flex; justify-content: space-between; font-weight: bold; font-size: 13px; }
+              .school { text-align: center; margin-top: 10px; }
+              .school h2 { font-size: 19px; font-weight: bold; text-transform: uppercase; margin: 0; }
+              .school p { font-size: 14px; margin: 4px 0 0; }
+              .ref-date { display: flex; justify-content: space-between; font-weight: bold; font-size: 13px; margin-top: 12px; }
+              .title { text-align: center; margin-top: 14px; font-size: 16px; font-weight: bold; text-decoration: underline; text-transform: uppercase; }
+              .body { margin-top: 12px; font-size: 13.5px; text-align: justify; line-height: 1.5; }
+              .major-head { font-weight: bold; margin-top: 10px; font-size: 12.5px; }
+              .signature { margin-top: 48px; text-align: right; font-weight: bold; font-size: 13.5px; }
+              .copy { margin-top: 16px; font-size: 12.5px; }
+              .copy ol { margin: 4px 0 0 16px; padding-left: 16px; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <div>SCHOOL ID - ${this.schoolId || ''}</div>
+              <div>PHONE - ${this.phone || ''}</div>
+            </div>
+            <div class="school">
+              <h2>${this.schoolName || ''}</h2>
+              <p>${this.address || ''}</p>
+            </div>
+            <div class="ref-date">
+              <div>Ref. No. ${fullRef}</div>
+              <div>Dated: ${this.guestDate}</div>
+            </div>
+            <div class="title">SANCTION ORDER</div>
+            <div class="body">
+              <p>Sanction is hereby accorded for incurring expenditure for an amount of <strong>Rs.${amtFormatted}/-</strong> (<strong>Rs. ${amtWords} only</strong>) for making payment for additional schooling facility- Wages in R/O the staff (Guest Teachers for the month of <strong>${this.guestMonth}</strong>).</p>
+              <p class="major-head">Major Head 220202109870002 ASF Wages</p>
+              <p>This Sanction has been accorded in exercise of the powers delegated by the finance department Govt. NCT of Delhi and in consultation with account functionaries of the Department.</p>
+              <p>The expenditure involved on this account would be debatable to the under mentioned Head of Account the <strong>year ${fy}</strong> under demand for Grant No.6</p>
+              <p class="major-head">Major Head 220202109870002 ASF Wages</p>
+            </div>
+            <div class="signature">HEAD OF SCHOOL</div>
+            <div class="copy">
+              <div style="font-weight:bold;">Copy to:-</div>
+              <ol>
+                <li>PAO-19, Prasad Nagar</li>
+                <li>DDO SV, East Punjabi Bagh</li>
+                <li>AAO Audit cell, Dte. Of Edn.</li>
+                <li>Guard File</li>
+              </ol>
+            </div>
+          </body>
+          </html>
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => printWindow.print(), 300);
+      });
+    }
+
+    const btnDownload = document.getElementById('guest-btn-download');
+    if (btnDownload) {
+      btnDownload.addEventListener('click', () => this.generateGuestPdf());
+    }
+  }
+
   getSnapshot() {
     return {
       schoolId: (this.schoolId || '').trim(),
@@ -1258,6 +2043,8 @@ if (window.lucide && tbody) {
     this.bindEvents();
     this.updateExportBtnLabel();
     this.updateStatus('Ready');
+    this.bindGuestEvents();
+     this.bindCertificatesEvents();
   }
 }
 
