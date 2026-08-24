@@ -1,0 +1,786 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sanction Order Manager - NCT of Delhi</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Tinos:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <meta name="description" content="Sanction Order Manager - Create and Append PDF Sanction Orders for NCT of Delhi" />
+    <!-- Standalone Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Standalone jsPDF CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Standalone jspdf-autotable plugin CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <!-- Standalone pdf-lib CDN -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    
+
+<link
+  href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.css"
+  rel="stylesheet"
+/>
+
+<script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+
+    <link rel="stylesheet" href="./src/index.css" />
+    <style>
+      @media print {
+        @page {
+          size: A4;
+          margin: 0;
+        }
+
+        html, body {
+          margin: 0 !important;
+          padding: 20px !important;
+          height: auto !important;
+          min-height: 0 !important;
+          overflow: visible !important;
+          background: #fff !important;
+          display: block !important;
+        }
+
+        body * {
+          visibility: hidden;
+        }
+
+        #doc-pages-container,
+        #doc-pages-container * {
+          visibility: visible;
+        }
+
+        .main-layout,
+        .preview-wrap {
+          overflow: visible !important;
+          height: auto !important;
+          padding: 20 !important;
+          margin: 0 !important;
+          display: block !important;
+        }
+
+        #doc-pages-container {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100% !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          gap: 0 !important;
+        }
+
+        #doc-pages-container > * + * {
+          margin-top: 0 !important;
+        }
+
+        .doc-page-block {
+          width: 210mm !important;
+          max-width: none !important;
+          min-height: 297mm !important;
+          height: 297mm !important;
+          margin: 0 auto !important;
+          box-shadow: none !important;
+          border: none !important;
+          border-radius: 0 !important;
+          box-sizing: border-box !important;
+          overflow: hidden;
+          page-break-after: always;
+          break-after: page;
+        }
+
+        .doc-page-block:last-of-type {
+          page-break-after: auto;
+          break-after: auto;
+        }
+      }
+    </style>
+  </head>
+  <body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col justify-between selection:bg-blue-600 selection:text-white font-sans antialiased">
+    
+    <!-- Top Navigation Header -->
+    <header class="h-16 bg-slate-900 text-white flex items-center justify-between px-4 sm:px-8 border-b border-slate-700 shrink-0 sticky top-0 z-40 shadow-xs print:hidden">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center text-white font-bold text-sm italic shadow-xs">
+          SG
+        </div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-base sm:text-lg font-semibold tracking-tight text-white">
+            SanctionGen
+          </h1>
+          <span class="text-[11px] font-normal text-slate-400 bg-slate-800 border border-slate-700 px-2 py-0.5 rounded hidden sm:inline-block">
+            NCT of Delhi
+          </span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3 sm:gap-6">
+        <nav class="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm font-medium text-slate-300">
+          <button
+            type="button"
+            id="btn-open-history"
+            class="hover:text-white bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer text-xs font-semibold"
+          >
+            <svg class="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <span id="history-nav-count">History (0)</span>
+          </button>
+
+          <button
+            type="button"
+            id="btn-open-json-modal"
+            class="hover:text-white bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer text-xs font-semibold hidden sm:flex"
+          >
+            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            <span>JSON Backup</span>
+          </button>
+        </nav>
+
+        <div class="h-6 w-px bg-slate-700 hidden sm:block"></div>
+
+        <div id="header-fy-date" class="text-right text-xs text-slate-400 font-mono hidden md:block">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Workspace Layout -->
+    <main class="main-layout flex-1 flex flex-col lg:flex-row overflow-hidden">
+      
+      <!-- Left Column: Form Editor Panel -->
+      <aside class="form-col w-full lg:w-[480px] xl:w-[720px] bg-white border-r border-slate-200 p-4 sm:p-6 flex flex-col shrink-0 overflow-y-auto space-y-6 print:hidden">
+        
+        <!-- Section 1: Sanction Metadata -->
+        <div>
+          <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3.5 flex items-center justify-between">
+            <span>Sanction Details</span>
+            <span class="text-[10px] font-mono text-slate-400 normal-case">Step 1 of 3</span>
+          </h2>
+
+          <div class="space-y-3.5 bg-slate-50/50 p-4 rounded-xl border border-slate-200/80">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label for="input-refNo" class="block text-xs font-semibold text-slate-700 mb-1">
+                  Reference No.
+                </label>
+                <div class="flex items-center">
+                  <span id="prefix-fy" class="bg-slate-100 border border-r-0 border-slate-300 px-2 py-2 text-xs text-slate-500 font-mono rounded-l shrink-0">
+                    SV/EPB/2026/
+                  </span>
+                  <input
+                    id="input-refNo"
+                    type="text"
+                    placeholder="e.g. 324"
+                    class="w-full px-3 py-2 border border-slate-300 rounded-r text-sm font-mono focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-slate-900"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label for="input-sanctionDate" class="block text-xs font-semibold text-slate-700 mb-1">
+                  Issue Date
+                </label>
+                <div class="flex gap-1 items-center">
+                  <input
+                    id="input-sanctionDate"
+                    type="text"
+                    placeholder="DD/MM/YYYY"
+                    class="w-full px-3 py-2 border border-slate-300 rounded text-sm font-mono focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-slate-900"
+                  />
+                  <button
+                    type="button"
+                    id="btn-set-today"
+                    class="shrink-0 px-2.5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs rounded font-medium transition-colors cursor-pointer"
+                    title="Set to today's date"
+                  >
+                  <span class="icon-span">
+                 <i data-lucide="calendar-days" width="20" height="20"></i> </span>
+                    <span>Today</span>
+                  </button>
+                </div>
+                <div id="date-error-msg" class="text-[10px] text-red-600 mt-1 flex items-center gap-1 hidden">
+                  <svg class="w-3 h-3 text-red-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                  <span id="date-error-text"></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label for="select-sanctionType" class="block text-xs font-semibold text-slate-700 mb-1">
+                  Sanction Type
+                </label>
+                <select
+                  id="select-sanctionType"
+                  class="w-full px-3 py-2 border border-slate-300 rounded text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-slate-900 cursor-pointer"
+                >
+                  <option value="Vendor Sanction">Vendor Sanction</option>
+                  <option value="Normal Sanction">Normal Sanction</option>
+                </select>
+              </div>
+
+              <div>
+                <label for="select-budgetHead" class="block text-xs font-semibold text-slate-700 mb-1">
+                  Budget Head
+                </label>
+                <select
+                  id="select-budgetHead" data-hcg-select data-placeholder="Select a Budget"
+                  class="w-full px-3 py-2 border border-slate-300 rounded text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-slate-900 font-mono text-xs cursor-pointer"
+                ></select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Institution & School Profile -->
+        <div>
+          <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3.5">
+            Institution Profile
+          </h2>
+
+          <div class="space-y-3 bg-slate-50/50 p-4 rounded-xl border border-slate-200/80">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label for="input-schoolId" class="block text-xs font-semibold text-slate-700 mb-1">
+                  School ID
+                </label>
+                <input
+                  id="input-schoolId"
+                  type="text"
+                  class="w-full px-3 py-2 border border-slate-300 rounded text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-slate-900"
+                />
+              </div>
+              <div>
+                <label for="input-phone" class="block text-xs font-semibold text-slate-700 mb-1">
+                  Phone Contact
+                </label>
+                <input
+                  id="input-phone"
+                  type="text"
+                  class="w-full px-3 py-2 border border-slate-300 rounded text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-slate-900"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label for="input-schoolName" class="block text-xs font-semibold text-slate-700 mb-1">
+                School / Organization Name
+              </label>
+              <input
+                id="input-schoolName"
+                type="text"
+                class="w-full px-3 py-2 border border-slate-300 rounded text-sm font-medium focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-slate-900"
+              />
+            </div>
+
+            <div>
+              <label for="input-address" class="block text-xs font-semibold text-slate-700 mb-1">
+                Address Line
+              </label>
+              <input
+                id="input-address"
+                type="text"
+                class="w-full px-3 py-2 border border-slate-300 rounded text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-slate-900"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: Firm & Invoices -->
+        <div>
+          <div class="flex items-center justify-between mb-3.5">
+            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest">
+              Firm &amp; Bill Breakdown
+            </h2>
+            <span id="bill-rows-count" class="text-[10px] text-slate-500 font-normal">
+              3 items
+            </span>
+          </div>
+
+          <!-- Dynamic Bill Rows Table Container -->
+          <div class="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-2xs">
+            <div class="max-h-[360px] overflow-y-auto">
+              <table class="w-full text-left border-collapse">
+                <thead class="bg-slate-100/80 sticky top-0 z-10 text-[11px] font-bold text-slate-600 border-b border-slate-200">
+                  <tr>
+                    <th class="p-2 w-10 text-center">#</th>
+                    <th class="p-2">Name of Firm</th>
+                    <th class="p-2">Bill No &amp; Date</th>
+                    <th class="p-2 w-28 text-right">Amount (Rs.)</th>
+                    <th class="p-2 w-8"></th>
+                  </tr>
+                </thead>
+                <tbody id="bill-table-body" class="divide-y divide-slate-100 text-xs">
+                  <!-- Populated dynamically by JS -->
+                </tbody>
+              </table>
+            </div>
+
+            <div class="p-2.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+              <button
+                type="button"
+                id="btn-add-bill-row"
+                class="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer shadow-2xs"
+              >
+                <svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                <span>Add Bill Item</span>
+              </button>
+
+              <div class="text-right">
+                <div class="text-xs text-slate-500 font-medium">Total:</div>
+                <div id="form-total-amt" class="text-sm font-bold font-mono text-slate-900">
+                  Rs. 0.00
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Total in Words display -->
+          <div class="mt-2 text-xs text-slate-600 bg-slate-100/60 p-2.5 rounded-lg border border-slate-200/60">
+            <span class="font-semibold text-slate-700">Amount in Words:</span>
+            <span id="form-total-words" class="italic ml-1 text-slate-800">Zero Rupees Only</span>
+          </div>
+        </div>
+
+        <!-- Section 4: Copy To Recipients -->
+        <div>
+          <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
+            Copy To (Recipients)
+          </h2>
+          <textarea
+            id="textarea-copyTo"
+            rows="3"
+            class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono text-slate-800 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white leading-relaxed resize-y"
+          ></textarea>
+        </div>
+
+        <!-- Section 5: Output & Append Settings -->
+        <div class="pt-2 border-t border-slate-100 space-y-3.5">
+          <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest">
+            Output Settings
+          </h2>
+
+          <div class="space-y-2.5">
+            <label
+              id="label-mode-new"
+              class="flex items-center gap-3 cursor-pointer p-3 rounded-lg border transition-all bg-blue-50 border-blue-200 shadow-2xs"
+            >
+              <input
+                type="radio"
+                name="outputMode"
+                value="new"
+                id="radio-mode-new"
+                checked
+                class="accent-blue-600 w-4 h-4 cursor-pointer"
+              />
+              <div class="flex flex-col">
+                <span class="text-sm font-semibold text-blue-900">
+                  Create New Standalone PDF
+                </span>
+                <span class="text-[11px] text-blue-700">
+                  Starts and exports a clean single sanction order
+                </span>
+              </div>
+            </label>
+
+            <label
+              id="label-mode-continue"
+              class="flex items-center gap-3 cursor-pointer p-3 rounded-lg border transition-all border-slate-200 hover:bg-slate-50"
+            >
+              <input
+                type="radio"
+                name="outputMode"
+                value="continue"
+                id="radio-mode-continue"
+                class="accent-blue-600 w-4 h-4 cursor-pointer"
+              />
+              <div class="flex flex-col flex-1">
+                <div class="flex items-center justify-between">
+                  <span class="text-sm font-semibold text-slate-800">
+                    Combine Saved History Drafts
+                  </span>
+                  <span id="chained-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-200 text-blue-900 hidden">
+                    0 chained
+                  </span>
+                </div>
+                <span class="text-[11px] text-slate-500">
+                  Chains previous sanctions into a multi-page document
+                </span>
+              </div>
+            </label>
+          </div>
+
+          <div id="continue-config-btn-wrap" class="flex justify-end hidden">
+            <button
+              type="button"
+              id="btn-open-continue-modal"
+              class="text-xs text-blue-600 hover:text-blue-800 font-semibold inline-flex items-center gap-1 hover:underline cursor-pointer"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+              <span>Configure Chained Drafts &rarr;</span>
+            </button>
+          </div>
+
+          <!-- Direct Disk PDF Append Card -->
+          <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
+                <span class="text-xs font-semibold text-slate-700">
+                  Append to Existing PDF File
+                </span>
+              </div>
+              <button
+                type="button"
+                id="btn-remove-attached-pdf"
+                class="text-[11px] text-red-600 hover:underline inline-flex items-center gap-0.5 hidden cursor-pointer"
+              >
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                <span>Remove</span>
+              </button>
+            </div>
+
+            <div id="attached-pdf-name-wrap" class="text-xs bg-white p-2 rounded border border-slate-200 text-slate-800 flex items-center justify-between hidden">
+              <span id="attached-pdf-filename" class="truncate max-w-[280px] font-medium text-blue-900"></span>
+              <button
+                type="button"
+                id="btn-replace-attached-pdf"
+                class="text-[11px] text-blue-600 font-semibold hover:underline shrink-0 cursor-pointer"
+              >
+                Replace
+              </button>
+            </div>
+
+            <button
+              type="button"
+              id="btn-choose-append-pdf"
+              class="w-full py-2 px-3 bg-white hover:bg-slate-100 border border-slate-300 rounded text-xs font-semibold text-slate-700 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+             <i data-lucide="upload" width="16" height="16" color="#000"></i> 
+              <span>Choose Existing PDF to Append At End</span>
+            </button>
+            <input
+              type="file"
+              id="input-file-append-pdf"
+              accept=".pdf"
+              class="hidden"
+            />
+          </div>
+        </div>
+
+        <!-- Primary Action Buttons -->
+        <div class="pt-2 space-y-3">
+          <button
+            type="button"
+            id="btn-export-pdf"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-lg shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm tracking-wide uppercase cursor-pointer"
+          >
+           <i data-lucide="hard-drive-download" width="20" height="20" color="#fff"></i>
+            <span id="export-btn-label">Generate &amp; Download PDF</span>
+          </button>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <button
+              type="button"
+              id="btn-print-sanction"
+              class="py-2.5 px-3 bg-slate-800 hover:bg-slate-900 text-white font-semibold text-xs rounded-lg transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+            >
+              <i data-lucide="printer" width="16" height="16" color="#fff"></i>
+              <span>PRINT DOCUMENT</span>
+            </button>
+
+            <button
+              type="button"
+              id="btn-save-draft"
+              class="py-2.5 px-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-semibold text-xs rounded-lg transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+            >
+              <i data-lucide="save-plus" width="16" height="16" color="#000"></i>
+              <span>SAVE TO HISTORY</span>
+            </button>
+          </div>
+<div class="pt-1 flex justify-center">
+          <button
+            type="button"
+            id="btn-clear-all-history"
+            class="text-red-600 hover:underline font-semibold cursor-pointer"
+          >
+            Clear History
+          </button>
+
+</div>
+          <div class="pt-1 flex justify-center">
+            <button
+              type="button"
+              id="btn-reset-form"
+              class="text-xs text-slate-500 hover:text-red-600 transition-colors flex items-center gap-1 py-1 cursor-pointer"
+            >
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+              <span>Reset to Sample Form</span>
+            </button>
+          </div>
+        </div>
+
+      </aside>
+
+      <!-- Right Column: Live Document Preview Panel -->
+      <section class="preview-wrap flex-1 bg-slate-200/70 p-4 sm:p-8 overflow-y-auto flex flex-col items-center">
+        
+        <!-- Live Preview Sticky Toolbar -->
+        <div class="preview-toolbar w-full max-w-[210mm] mb-4 flex items-center justify-between text-xs text-slate-600 print:hidden">
+          <div class="flex items-center gap-2">
+            <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span class="font-semibold text-slate-700">Official Preview (A4 Standard)</span>
+            <span class="text-slate-400">&middot; Live Real-Time Rendering</span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              id="btn-preview-print"
+              class="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded text-slate-700 font-medium text-xs shadow-2xs flex items-center gap-1 cursor-pointer"
+            >
+              <i data-lucide="printer" width="16" height="16" color="#000"></i>
+              <span>Print Preview</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Single/Multi Document Pages Container -->
+        <div id="doc-pages-container" class="w-full flex flex-col items-center space-y-6">
+          
+          <!-- Primary A4 Sheet Container -->
+          <div
+            id="doc-page-1"
+            class="doc-page-block w-full max-w-[210mm] min-h-[297mm] bg-white shadow-xl rounded-sm p-[18mm] text-black border border-slate-300/80 box-border"
+            style="font-family: 'Inter', sans-serif;"
+          >
+            <!-- Header: School ID & Phone -->
+            <div class="flex justify-between items-center text-[13px] font-bold tracking-tight">
+              <div>SCHOOL ID - <span id="preview-school-id">1515004</span></div>
+              <div>PHONE - <span id="preview-phone">28313597</span></div>
+            </div>
+
+            <!-- School Name (Centered) -->
+            <div class="text-center mt-2.5">
+              <h2 id="preview-school-name" class="text-[19px] font-bold uppercase tracking-wide leading-tight">
+                SARVODAYA VIDYALAYA
+              </h2>
+            </div>
+
+            <!-- Address (Centered) -->
+            <div class="text-center mt-1">
+              <p id="preview-address" class="text-[14px] leading-tight">
+                EAST PUNJABI BAGH NEW DELHI - 26
+              </p>
+            </div>
+
+            <!-- Ref. No & Date Line -->
+            <div class="flex justify-between items-center mt-3 text-[13px] font-bold">
+              <div>Ref. No. <span id="preview-ref-no">SV/EPB/2026-27/324</span></div>
+              <div>Dated: <span id="preview-date">18/04/2026</span></div>
+            </div>
+
+            <!-- Title: SANCTION ORDER -->
+            <div class="text-center mt-3.5">
+              <span class="text-[16px] font-bold uppercase underline tracking-wider inline-block">
+                SANCTION ORDER
+              </span>
+            </div>
+
+            <!-- Sanction Conveyance Paragraph -->
+            <p class="mt-3 text-[13.5px] leading-relaxed text-justify">
+              Sanction is hereby conveyed for incurring an expenditure of 
+              <strong class="font-bold">Rs. <span id="preview-amt-num">11,362.00</span></strong> 
+              (<strong class="font-bold">Rs. <span id="preview-amt-words">Eleven Thousand Three Hundred Sixty Two Rupees Only</span></strong>) 
+              for making payment under head 
+              <strong class="font-bold"><span id="preview-budget-head-1">2202 02 053 97 00 27-VKS</span></strong> 
+              as per details below: --
+            </p>
+
+            <!-- Bill Table -->
+            <table class="w-full mt-3 border-collapse border border-slate-500 text-[12.5px]">
+              <thead>
+                <tr class="bg-slate-200 text-black font-bold">
+                  <th class="border border-slate-500 px-2 py-1 text-center w-14">SL. NO.</th>
+                  <th class="border border-slate-500 px-2 py-1 text-left">NAME OF FIRM</th>
+                  <th class="border border-slate-500 px-2 py-1 text-left">BILL NO &amp; DATE</th>
+                  <th class="border border-slate-500 px-2 py-1 text-right w-28">AMOUNT (Rs.)</th>
+                </tr>
+              </thead>
+              <tbody id="preview-bill-table-body">
+                <!-- Dynamically filled with clean table rows -->
+              </tbody>
+              <tfoot>
+                <tr class="font-bold">
+                  <td colspan="3" class="border border-slate-500 px-2 py-1 text-right">TOTAL</td>
+                  <td id="preview-total-amt" class="border border-slate-500 px-2 py-1 text-right">11,362.00</td>
+                </tr>
+              </tfoot>
+            </table>
+
+            <!-- Clauses Paragraph 1: Major Head & Delegated Powers -->
+            <p class="mt-4 text-[12.5px] leading-relaxed text-justify">
+              <strong class="font-bold">Major Head: <span id="preview-budget-head-2">2202 02 053 97 00 27-VKS</span></strong> 
+              This Sanction has been accorded/conveyed in exercise of the powers delegated by the finance department Govt. NCT of Delhi and in consultation with account functionaries of the Department.
+            </p>
+
+            <!-- Clauses Paragraph 2: Prior Approval -->
+            <p class="mt-2 text-[12.5px] leading-relaxed text-justify">
+              This issues with the prior approval of Deputy Director of Education/Regional Director of Education/Head of department/Competent Authority/Secretary of Education.
+            </p>
+
+            <!-- Clauses Paragraph 3: Debatable to Grant No. 6 -->
+            <p class="mt-2 text-[12.5px] leading-relaxed text-justify">
+              The expenditure involved on this account would be debatable to the under mentioned Head of Account the year <span id="preview-fy-grant">2026-2027</span> under demand for Grant no. 6.<br>
+              <strong class="font-bold">Major Head <span id="preview-budget-head-3">2202 02 053 97 00 27-VKS</span></strong>
+            </p>
+
+            <!-- Signature Section -->
+            <div class="mt-8 flex justify-end">
+              <div class="text-right font-bold text-[13.5px]">
+                HEAD OF SCHOOL
+              </div>
+            </div>
+
+            <!-- Copy To Section -->
+            <div class="mt-4 text-[12.5px]">
+              <div class="font-bold">Copy to:-</div>
+              <ol id="preview-copy-to-list" class="list-none pl-0 mt-1 space-y-0.5 leading-snug">
+                <!-- Filled dynamically by JS -->
+              </ol>
+            </div>
+          </div>
+
+        </div>
+      </section>
+    </main>
+
+    <!-- Bottom Status Bar -->
+    <footer class="h-8 bg-slate-900 text-slate-400 text-xs px-4 sm:px-8 flex items-center justify-between border-t border-slate-800 shrink-0 font-mono print:hidden">
+      <div id="app-status-text" class="flex items-center gap-2">
+        <span class="inline-block w-2 h-2 rounded-full bg-emerald-400"></span>
+        <span>Status: Ready</span>
+      </div>
+      <div class="hidden sm:flex items-center gap-4 text-[11px]">
+        <span>Single &amp; Chained PDF Mode</span>
+        <span>&middot;</span>
+        <span>Standalone Client App</span>
+      </div>
+    </footer>
+
+    <!-- History Drawer / Modal -->
+    <div id="history-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 hidden">
+      <div class="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+        <div class="p-4 bg-slate-900 text-white flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <h3 class="font-bold text-sm">Saved Sanction Order History</h3>
+          </div>
+          <button
+            type="button"
+            id="btn-close-history-modal"
+            class="text-slate-400 hover:text-white cursor-pointer p-1"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+        </div>
+
+        <div id="history-list-container" class="p-4 overflow-y-auto flex-1 divide-y divide-slate-100">
+          <!-- Populated dynamically by JS -->
+        </div>
+
+        <div class="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs">
+          <button
+            type="button"
+            id="btn-clear-all-history"
+            class="text-red-600 hover:underline font-semibold cursor-pointer"
+          >
+            Clear History
+          </button>
+          <span class="text-slate-500">Auto-saved to your browser storage</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chained Multi-Order Draft Selector Modal -->
+    <div id="continue-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 hidden">
+      <div class="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden">
+        <div class="p-4 bg-slate-900 text-white flex items-center justify-between">
+          <h3 class="font-bold text-sm">Select Saved Drafts to Combine into Multi-Page PDF</h3>
+          <button
+            type="button"
+            id="btn-close-continue-modal"
+            class="text-slate-400 hover:text-white cursor-pointer p-1"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+        </div>
+
+        <div id="continue-drafts-list" class="p-4 overflow-y-auto flex-1 space-y-2">
+          <!-- Populated dynamically by JS -->
+        </div>
+
+        <div class="p-3 bg-slate-50 border-t border-slate-200 flex justify-end gap-2 text-xs">
+          <button
+            type="button"
+            id="btn-apply-continue-selection"
+            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg cursor-pointer shadow-2xs"
+          >
+            Save &amp; Apply Multi-Page Selection
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- JSON Backup Export / Import Modal -->
+    <div id="json-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 hidden">
+      <div class="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-md p-5 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-base text-slate-900">Backup &amp; Restore Drafts</h3>
+          <button
+            type="button"
+            id="btn-close-json-modal"
+            class="text-slate-400 hover:text-slate-700 cursor-pointer"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+        </div>
+
+        <p class="text-xs text-slate-600">
+          Export your current sanction order and saved history to a <code class="bg-slate-100 px-1 py-0.5 rounded text-blue-700 font-mono">.json</code> file, or restore from an earlier backup.
+        </p>
+
+        <div class="space-y-2 pt-2">
+          <button
+            type="button"
+            id="btn-export-json-file"
+            class="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-lg flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            <span>Download JSON Backup File</span>
+          </button>
+
+          <button
+            type="button"
+            id="btn-import-json-file"
+            class="w-full py-2.5 px-4 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
+          >
+            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+            <span>Import / Restore from JSON File</span>
+          </button>
+          <input type="file" id="input-import-json-file" accept=".json" class="hidden" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Notification Toast Element -->
+    <div
+      id="app-toast"
+      class="fixed bottom-12 right-6 z-50 px-4 py-2.5 rounded-lg shadow-xl text-xs font-semibold flex items-center gap-2 border transition-all duration-200 hidden"
+    ></div>
+
+    <!-- Application Script -->
+     <script src="https://unpkg.com/lucide@latest"></script>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
