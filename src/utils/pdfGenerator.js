@@ -1,5 +1,15 @@
 import { formatMoney, numberToWordsIndian, pad2, refNoFull, currentFinancialYear } from './numberToWords.js';
 
+const MEDICAL_BUDGET_HEADS = [
+  '2202 02 101 94 00 06-Pre Primary-Medical Treatm.',
+  '2202 02 109 87 00 06-Additional Schooling Facilities-Medical Treatment',
+  '2202 02 109 96 00 06-Govt. Sec. Schooling Medical',
+];
+
+function isMedicalBudget(budgetHead) {
+  return MEDICAL_BUDGET_HEADS.includes(budgetHead);
+}
+
 async function getJsPdfConstructor() {
   if (typeof window !== 'undefined') {
     if (window.jspdf && window.jspdf.jsPDF) return window.jspdf.jsPDF;
@@ -47,10 +57,83 @@ export async function generateSingleOrMultiSanctionPdfBytes(snapshots) {
       doc.addPage();
     }
 
-    const total = (snap.billRows || []).reduce((sum, r) => {
-      const v = parseFloat(r.amt);
-      return sum + (isNaN(v) ? 0 : v);
-    }, 0);
+    const isMedical = isMedicalBudget(snap.budgetHead);
+    let total = 0;
+    let tableBody = [];
+    let tableHead = [];
+    let columnStyles = {};
+    let amountColIndex = 3;
+
+    if (isMedical) {
+      amountColIndex = 4;
+      total = (snap.medicalRows || []).reduce((sum, group) => {
+        return sum + (group.patients || []).reduce((pSum, p) => {
+          const v = parseFloat(p.amt);
+          return pSum + (isNaN(v) ? 0 : v);
+        }, 0);
+      }, 0);
+
+      let slNo = 1;
+      (snap.medicalRows || []).forEach((group) => {
+        const patients = group.patients || [];
+        patients.forEach((p, pIdx) => {
+          const amtVal = parseFloat(p.amt);
+          tableBody.push([
+            pIdx === 0 ? pad2(slNo) : '',
+            pIdx === 0 ? (group.employeeName || '').toUpperCase() : '',
+            `${p.relativeName || ''}${p.relation ? ' (' + p.relation + ')' : ''}`,
+            p.hospital || '',
+            formatMoney(isNaN(amtVal) ? 0 : amtVal)
+          ]);
+        });
+        slNo++;
+      });
+
+      tableBody.push([
+        { content: 'TOTAL', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } },
+        { content: formatMoney(total), styles: { halign: 'right', fontStyle: 'bold' } }
+      ]);
+
+      tableHead = [['SL. NO.', 'NAME OF EMPLOYEE', 'NAME OF RELATIVES (RELATION)', 'NAME OF HOSPITAL', 'AMOUNT (Rs.)']];
+
+      columnStyles = {
+        0: { halign: 'center', cellWidth: 14 },
+        1: { halign: 'left', cellWidth: 48 },
+        2: { halign: 'left', cellWidth: 52 },
+        3: { halign: 'left', cellWidth: 40 },
+        4: { halign: 'right', cellWidth: 28 },
+      };
+    } else {
+      total = (snap.billRows || []).reduce((sum, r) => {
+        const v = parseFloat(r.amt);
+        return sum + (isNaN(v) ? 0 : v);
+      }, 0);
+
+      tableBody = (snap.billRows || []).map((r, idx) => {
+        const amtVal = parseFloat(r.amt);
+        return [
+          pad2(idx + 1),
+          r.firm || '',
+          r.bill || '',
+          formatMoney(isNaN(amtVal) ? 0 : amtVal)
+        ];
+      });
+
+      tableBody.push([
+        { content: 'TOTAL', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
+        { content: formatMoney(total), styles: { halign: 'right', fontStyle: 'bold' } }
+      ]);
+
+      tableHead = [['SL. NO.', 'NAME OF FIRM', 'BILL NO & DATE', 'AMOUNT (Rs.)']];
+
+      columnStyles = {
+        0: { halign: 'center', cellWidth: 16 },
+        1: { halign: 'left', cellWidth: 62 },
+        2: { halign: 'left', cellWidth: 64 },
+        3: { halign: 'right', cellWidth: 32 },
+      };
+    }
+
     const amtWords = numberToWordsIndian(total);
     const fy = currentFinancialYear();
     const ref = refNoFull(snap.refNo);
@@ -103,27 +186,11 @@ export async function generateSingleOrMultiSanctionPdfBytes(snapshots) {
     doc.text(splitBody, marginLeft, y);
     y += splitBody.length * 4.8 + 2;
 
-    // Bill Details Table
-    const tableBody = (snap.billRows || []).map((r, idx) => {
-      const amtVal = parseFloat(r.amt);
-      return [
-        pad2(idx + 1),
-        r.firm || '',
-        r.bill || '',
-        formatMoney(isNaN(amtVal) ? 0 : amtVal)
-      ];
-    });
-
-    // Add total row
-    tableBody.push([
-      { content: 'TOTAL', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
-      { content: formatMoney(total), styles: { halign: 'right', fontStyle: 'bold' } }
-    ]);
-
+    // Table
     const tableConfig = {
       startY: y,
       margin: { left: marginLeft, right: marginRight },
-      head: [['SL. NO.', 'NAME OF FIRM', 'BILL NO & DATE', 'AMOUNT (Rs.)']],
+      head: tableHead,
       body: tableBody,
       theme: 'grid',
       styles: {
@@ -140,15 +207,11 @@ export async function generateSingleOrMultiSanctionPdfBytes(snapshots) {
         fontStyle: 'bold',
         halign: 'left',
       },
-      columnStyles: {
-        0: { halign: 'center', cellWidth: 16 },
-        1: { halign: 'left', cellWidth: 62 },
-        2: { halign: 'left', cellWidth: 64 },
-        3: { halign: 'right', cellWidth: 32 },
-      },
+      columnStyles: columnStyles,
       didParseCell: (data) => {
-        if (data.section === 'head' && (data.column.index === 0 || data.column.index === 3)) {
-          data.cell.styles.halign = data.column.index === 0 ? 'center' : 'right';
+        if (data.section === 'head') {
+          if (data.column.index === 0) data.cell.styles.halign = 'center';
+          if (data.column.index === amountColIndex) data.cell.styles.halign = 'right';
         }
       }
     };

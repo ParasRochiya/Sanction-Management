@@ -284,7 +284,7 @@ class SanctionApp {
             data-add-patient-group="${group.id}"
             class="btn-add-patient mt-1 mb-1 ml-1 text-[10px] text-blue-600 hover:text-blue-800 font-semibold inline-flex items-center gap-0.5 cursor-pointer"
           >
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+            <i data-lucide="user-plus" width="12" height="12" color="#000"></i>
             Add Patient
           </button>
         </td>
@@ -297,7 +297,7 @@ class SanctionApp {
               class="btn-duplicate-medical text-slate-400 hover:text-blue-600 transition-colors p-1 cursor-pointer"
               title="Duplicate group"
             >
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+               <i data-lucide="copy-plus"  width="16" height="16" color="#000"></i>  
             </button>
             <button
               type="button"
@@ -305,7 +305,7 @@ class SanctionApp {
               class="btn-delete-medical text-slate-400 hover:text-red-600 transition-colors p-1 cursor-pointer"
               title="Delete group"
             >
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+               <i data-lucide="trash-2"  width="16" height="16" color="#000"></i>  
             </button>
           </div>
         </td>
@@ -1544,7 +1544,7 @@ if (window.lucide && tbody) {
             <tr>
               ${showGroup ? `<td class="border border-slate-500 px-2 py-1 text-center font-bold" rowspan="${patientCount}">${pad2(slNo++)}</td>` : ''}
               ${showGroup ? `<td class="border border-slate-500 px-2 py-1 font-bold uppercase" rowspan="${patientCount}">${group.employeeName || ''}</td>` : ''}
-              <td class="border border-slate-500 px-2 py-1">${p.relativeName || ''}${p.relation ? ` <span style="font-size:11px;color:#475569;">(${p.relation})</span>` : ''}</td>
+              <td class="border border-slate-500 px-2 py-1">${p.relativeName || ''}${p.relation ? ` <span style="font-size:11px;color:#000;">(${p.relation})</span>` : ''}</td>
               <td class="border border-slate-500 px-2 py-1">${p.hospital || ''}</td>
               <td class="border border-slate-500 px-2 py-1 text-right">${formatMoney(isNaN(amtVal) ? 0 : amtVal)}</td>
             </tr>
