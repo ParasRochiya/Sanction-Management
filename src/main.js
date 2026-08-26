@@ -76,10 +76,22 @@ class SanctionApp {
     this.copyTo = DEFAULT_COPY_TO;
     this.dateError = '';
 
-    this.billRows = [
-      { id: 1, firm: 'TOP SHOP TRADING', bill: 'INVOICE NO. 67 Dated 18/04/2026', amt: '6463.00' },
-      { id: 2, firm: 'ENTERPRISES', bill: 'INVOICE NO. 80 Dated 20/04/2026', amt: '3399.00' },
-      { id: 3, firm: 'AR ENTERPRISES', bill: 'INVOICE NO. 60 Dated 13/04/2026', amt: '1500.00' },
+        this.billRows = [
+      {
+        id: 1,
+        firm: 'TOP SHOP TRADING',
+        bills: [{ id: 101, bill: 'INVOICE NO. 67 Dated 18/04/2026', amt: '6463.00' }]
+      },
+      {
+        id: 2,
+        firm: 'ENTERPRISES',
+        bills: [{ id: 102, bill: 'INVOICE NO. 80 Dated 20/04/2026', amt: '3399.00' }]
+      },
+      {
+        id: 3,
+        firm: 'AR ENTERPRISES',
+        bills: [{ id: 103, bill: 'INVOICE NO. 60 Dated 13/04/2026', amt: '1500.00' }]
+      },
     ];
     this.rowSeq = 10;
 
@@ -141,13 +153,25 @@ class SanctionApp {
           if (snap.sanctionType) this.sanctionType = snap.sanctionType;
           if (snap.budgetHead) this.budgetHead = snap.budgetHead;
           if (snap.copyTo !== undefined) this.copyTo = snap.copyTo;
-          if (snap.billRows && snap.billRows.length > 0) {
-            this.billRows = snap.billRows.map((r) => ({
-              id: ++this.rowSeq,
-              firm: r.firm || '',
-              bill: r.bill || '',
-              amt: r.amt || '',
-            }));
+           if (snap.billRows && snap.billRows.length > 0) {
+            // Backward-compat: convert legacy flat rows to nested groups
+            if (snap.billRows[0] && 'bill' in snap.billRows[0] && !('bills' in snap.billRows[0])) {
+              this.billRows = snap.billRows.map((r) => ({
+                id: ++this.rowSeq,
+                firm: r.firm || '',
+                bills: [{ id: ++this.rowSeq, bill: r.bill || '', amt: r.amt || '' }]
+              }));
+            } else {
+              this.billRows = snap.billRows.map((g) => ({
+                id: ++this.rowSeq,
+                firm: g.firm || '',
+                bills: (g.bills || []).map((b) => ({
+                  id: ++this.rowSeq,
+                  bill: b.bill || '',
+                  amt: b.amt || '',
+                })),
+              }));
+            }
           }
         }
       }
@@ -491,7 +515,7 @@ class SanctionApp {
       doc.text(`PHONE -- ${this.phone || ''}`, 190, y, { align: 'right' });
       y += 8;
 
-      doc.setFontSize(15);
+      doc.setFontSize(20);
       doc.text(this.schoolName || '', 105, y, { align: 'center' });
       y += 6;
 
@@ -1127,7 +1151,10 @@ class SanctionApp {
       sanctionType: this.sanctionType,
       budgetHead: this.budgetHead,
       copyTo: this.copyTo,
-      billRows: this.billRows.map((r) => ({ firm: r.firm, bill: r.bill, amt: r.amt })),
+            billRows: this.billRows.map((g) => ({
+        firm: g.firm,
+        bills: g.bills.map((b) => ({ bill: b.bill, amt: b.amt }))
+      })),
             medicalRows: this.medicalRows.map((g) => ({
         employeeName: g.employeeName,
         patients: g.patients.map((p) => ({ relativeName: p.relativeName, relation: p.relation, hospital: p.hospital, amt: p.amt })),
@@ -1146,16 +1173,28 @@ class SanctionApp {
     if (snap.budgetHead) this.budgetHead = snap.budgetHead;
     if (snap.copyTo !== undefined) this.copyTo = snap.copyTo;
 
-        if (snap.billRows && snap.billRows.length > 0) {
-      this.billRows = snap.billRows.map((r) => ({
-        id: ++this.rowSeq,
-        firm: r.firm || '',
-        bill: r.bill || '',
-        amt: r.amt || '',
-      }));
-    } else {
-      this.billRows = [{ id: ++this.rowSeq, firm: '', bill: '', amt: '' }];
-    }
+               if (snap.billRows && snap.billRows.length > 0) {
+          // Backward-compat: convert legacy flat rows to nested groups
+          if (snap.billRows[0] && 'bill' in snap.billRows[0] && !('bills' in snap.billRows[0])) {
+            this.billRows = snap.billRows.map((r) => ({
+              id: ++this.rowSeq,
+              firm: r.firm || '',
+              bills: [{ id: ++this.rowSeq, bill: r.bill || '', amt: r.amt || '' }]
+            }));
+          } else {
+            this.billRows = snap.billRows.map((g) => ({
+              id: ++this.rowSeq,
+              firm: g.firm || '',
+              bills: (g.bills || []).map((b) => ({
+                id: ++this.rowSeq,
+                bill: b.bill || '',
+                amt: b.amt || '',
+              })),
+            }));
+          }
+        } else {
+          this.billRows = [{ id: ++this.rowSeq, firm: '', bills: [{ id: ++this.rowSeq, bill: '', amt: '' }] }];
+        } 
 
        if (snap.medicalRows && snap.medicalRows.length > 0) {
       this.medicalRows = snap.medicalRows.map((g) => ({
@@ -1200,9 +1239,11 @@ class SanctionApp {
         }, 0);
       }, 0);
     }
-    return this.billRows.reduce((sum, r) => {
-      const v = parseFloat(r.amt);
-      return sum + (isNaN(v) ? 0 : v);
+        return this.billRows.reduce((sum, group) => {
+      return sum + group.bills.reduce((bSum, b) => {
+        const v = parseFloat(b.amt);
+        return bSum + (isNaN(v) ? 0 : v);
+      }, 0);
     }, 0);
   }
 
@@ -1246,9 +1287,13 @@ class SanctionApp {
         this.showToast('At least one Relative name is required.', true);
         return false;
       }
-    } else {
-      if (!this.billRows.some((r) => r.firm.trim())) {
+        } else {
+      if (!this.billRows.some((g) => g.firm.trim())) {
         this.showToast('At least one Firm name is required.', true);
+        return false;
+      }
+      if (!this.billRows.some((g) => g.bills.some((b) => b.bill.trim()))) {
+        this.showToast('At least one Bill No & Date is required.', true);
         return false;
       }
     }
@@ -1406,8 +1451,7 @@ renderBudgetHeads() {
 }
   
  
-
-  renderBillTableRows() {
+    renderBillTableRows() {
     if (this.isMedicalBudget()) {
       this.renderMedicalBillTable();
       return;
@@ -1416,76 +1460,115 @@ renderBudgetHeads() {
     const tbody = document.getElementById('bill-table-body');
     const theadRow = document.getElementById('bill-table-header-row');
     const rowsCount = document.getElementById('bill-rows-count');
+
+    const totalBills = this.billRows.reduce((sum, g) => sum + g.bills.length, 0);
     if (rowsCount) {
-      rowsCount.textContent = `${this.billRows.length} item${this.billRows.length === 1 ? '' : 's'}`;
+      rowsCount.textContent = `${this.billRows.length} firm${this.billRows.length === 1 ? '' : 's'} (${totalBills} bills)`;
     }
 
     if (theadRow) {
       theadRow.innerHTML = `
         <th class="p-2 w-10 text-center">#</th>
-        <th class="p-2">Name of Firm</th>
+        <th class="p-2 w-40">Name of Firm</th>
         <th class="p-2">Bill No & Date</th>
         <th class="p-2 w-28 text-right">Amount (Rs.)</th>
-        <th class="p-2 w-8"></th>
+        <th class="p-2 w-10"></th>
       `;
     }
 
     if (!tbody) return;
     tbody.innerHTML = '';
 
-    this.billRows.forEach((row, index) => {
+    this.billRows.forEach((group, groupIndex) => {
+      const groupTotal = group.bills.reduce((sum, b) => {
+        const v = parseFloat(b.amt);
+        return sum + (isNaN(v) ? 0 : v);
+      }, 0);
+
       const tr = document.createElement('tr');
-      tr.className = 'hover:bg-slate-50 transition-colors';
+      tr.className = 'hover:bg-slate-50 transition-colors align-top';
       tr.innerHTML = `
-        <td class="p-2 text-center text-slate-400 font-mono text-[11px]">${pad2(index + 1)}</td>
-        <td class="p-1.5">
+        <td class="p-2 text-center text-slate-400 font-mono text-[11px] align-top pt-3">${pad2(groupIndex + 1)}</td>
+        <td class="p-1.5 align-top">
           <input
             type="text"
             placeholder="Firm Name"
-            value="${row.firm || ''}"
-            data-row-id="${row.id}"
+            value="${group.firm || ''}"
+            data-vendor-group-id="${group.id}"
             data-field="firm"
-            class="bill-input w-full px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none uppercase"
+            class="vendor-firm-input w-full px-2 py-1.5 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none uppercase"
           />
         </td>
-        <td class="p-1.5">
-          <input
-            type="text"
-            placeholder="e.g. INV-12 Dt. 12/04/26"
-            value="${row.bill || ''}"
-            data-row-id="${row.id}"
-            data-field="bill"
-            class="bill-input w-full px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
-          />
+        <td class="p-0 align-top">
+          <table class="w-full text-xs border-collapse">
+            <tbody class="vendor-bills-tbody" data-vendor-group-id="${group.id}">
+              ${group.bills.map((bill) => `
+                <tr class="border-b border-slate-100 last:border-b-0">
+                  <td class="p-1" style="min-width:200px;">
+                    <input
+                      type="text"
+                      placeholder="e.g. INV-12 Dt. 12/04/26"
+                      value="${bill.bill || ''}"
+                      data-vendor-group-id="${group.id}"
+                      data-bill-id="${bill.id}"
+                      data-field="bill"
+                      class="vendor-bill-input w-full px-1.5 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    />
+                  </td>
+                  <td class="p-1 w-24 text-right">
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value="${bill.amt || ''}"
+                      data-vendor-group-id="${group.id}"
+                      data-bill-id="${bill.id}"
+                      data-field="amt"
+                      class="vendor-bill-input w-full min-w-[70px] px-1.5 py-1 border border-slate-200 rounded text-xs font-mono text-right focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    />
+                  </td>
+                  <td class="p-1 w-6 text-center">
+                    <button
+                      type="button"
+                      data-delete-bill-group="${group.id}"
+                      data-delete-bill-id="${bill.id}"
+                      class="btn-delete-bill text-slate-400 hover:text-red-600 transition-colors p-0.5 cursor-pointer"
+                      title="Delete bill"
+                    >
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <button
+            type="button"
+            data-add-bill-group="${group.id}"
+            class="btn-add-bill mt-1 mb-1 ml-1 text-[10px] text-blue-600 hover:text-blue-800 font-semibold inline-flex items-center gap-0.5 cursor-pointer"
+          >
+            <i data-lucide="file-plus" width="12" height="12" color="#000"></i>
+            Add Bill
+          </button>
         </td>
-        <td class="p-1.5 text-right">
-          <input
-            type="number"
-            step="0.01"
-            placeholder="0.00"
-            value="${row.amt || ''}"
-            data-row-id="${row.id}"
-            data-field="amt"
-            class="bill-input w-full px-2 py-1 border border-slate-200 rounded text-xs font-mono text-right focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
-          />
-        </td>
-        <td class="p-1.5 text-center">
-          <div class="flex items-center justify-center gap-1">
+        <td class="p-2 text-right font-mono font-bold text-xs align-top pt-3 text-slate-800">Rs. ${formatMoney(groupTotal)}</td>
+        <td class="p-1.5 text-center align-top">
+          <div class="flex flex-col items-center gap-1 pt-1">
             <button
               type="button"
-              data-duplicate-row-id="${row.id}"
-              class="btn-duplicate-row text-slate-400 hover:text-blue-600 transition-colors p-1 cursor-pointer"
-              title="Duplicate row"
+              data-duplicate-vendor-id="${group.id}"
+              class="btn-duplicate-vendor text-slate-400 hover:text-blue-600 transition-colors p-1 cursor-pointer"
+              title="Duplicate firm"
             >
-              <i data-lucide="copy"  width="16" height="16" color="#000"></i>  
+               <i data-lucide="copy-plus"  width="16" height="16" color="#000"></i>  
             </button>
             <button
               type="button"
-              data-delete-row-id="${row.id}"
-              class="btn-delete-row text-slate-400 hover:text-red-600 transition-colors p-1 cursor-pointer"
-              title="Delete row"
+              data-delete-vendor-id="${group.id}"
+              class="btn-delete-vendor text-slate-400 hover:text-red-600 transition-colors p-1 cursor-pointer"
+              title="Delete firm"
             >
-              <i data-lucide="trash" width="16" height="16" color="#000"></i> 
+               <i data-lucide="trash-2"  width="16" height="16" color="#000"></i>  
             </button>
           </div>
         </td>
@@ -1499,16 +1582,12 @@ renderBudgetHeads() {
 
     const formTotalAmt = document.getElementById('form-total-amt');
     if (formTotalAmt) formTotalAmt.textContent = `Rs. ${formattedTotal}`;
-
     const formTotalWords = document.getElementById('form-total-words');
     if (formTotalWords) formTotalWords.textContent = words;
 
-if (window.lucide && tbody) {
-  lucide.createIcons({
-    root: tbody
-  });
-}
-    
+    if (window.lucide && tbody) {
+      lucide.createIcons({ root: tbody });
+    }
   }
 
   generatePageHtml(snap, pageIndex = 1, totalPages = 1) {
@@ -1561,25 +1640,32 @@ if (window.lucide && tbody) {
           <th class="border border-slate-500 px-2 py-1 text-right w-28">AMOUNT (Rs.)</th>
         </tr>
       `;
-    } else {
-      total = rows.reduce((sum, r) => {
-        const v = parseFloat(r.amt);
-        return sum + (isNaN(v) ? 0 : v);
+        } else {
+      total = this.billRows.reduce((sum, group) => {
+        return sum + group.bills.reduce((bSum, b) => {
+          const v = parseFloat(b.amt);
+          return bSum + (isNaN(v) ? 0 : v);
+        }, 0);
       }, 0);
       formattedTotal = formatMoney(total);
       amtWords = numberToWordsIndian(total);
       footerColspan = 3;
 
-      billRowsHtml = rows.map((r, idx) => {
-        const amtVal = parseFloat(r.amt);
-        return `
-          <tr>
-            <td class="border border-slate-500 px-2 py-1 text-center font-bold">${pad2(idx + 1)}</td>
-            <td class="border border-slate-500 px-2 py-1 font-bold uppercase">${r.firm || ''}</td>
-            <td class="border border-slate-500 px-2 py-1">${r.bill || ''}</td>
-            <td class="border border-slate-500 px-2 py-1 text-right">${formatMoney(isNaN(amtVal) ? 0 : amtVal)}</td>
-          </tr>
-        `;
+      let slNo = 1;
+      billRowsHtml = this.billRows.map((group) => {
+        const billCount = group.bills.length;
+        return group.bills.map((b, bIdx) => {
+          const amtVal = parseFloat(b.amt);
+          const showGroup = bIdx === 0;
+          return `
+            <tr>
+              ${showGroup ? `<td class="border border-slate-500 px-2 py-1 text-center font-bold" rowspan="${billCount}">${pad2(slNo++)}</td>` : ''}
+              ${showGroup ? `<td class="border border-slate-500 px-2 py-1 font-bold uppercase" rowspan="${billCount}">${group.firm || ''}</td>` : ''}
+              <td class="border border-slate-500 px-2 py-1">${b.bill || ''}</td>
+              <td class="border border-slate-500 px-2 py-1 text-right">${formatMoney(isNaN(amtVal) ? 0 : amtVal)}</td>
+            </tr>
+          `;
+        }).join('');
       }).join('');
 
       tableHeaderHtml = `
@@ -1617,8 +1703,8 @@ if (window.lucide && tbody) {
           <div>PHONE - <span>${snap.phone || ''}</span></div>
         </div>
 
-        <div class="text-center mt-2.5">
-          <h2 class="text-[19px] font-bold uppercase tracking-wide leading-tight">
+        <div class="text-center mt-5">
+          <h2 class="text-[30px] font-bold uppercase tracking-wide leading-tight">
             ${snap.schoolName || 'SARVODAYA VIDYALAYA'}
           </h2>
         </div>
@@ -1721,7 +1807,7 @@ if (window.lucide && tbody) {
       schoolName: snap.schoolName,
       budgetHead: snap.budgetHead,
       totalAmount: total,
-      itemCount: snap.billRows.length,
+      itemCount: snap.billRows.reduce((sum, g) => sum + (g.bills || []).length, 0),
       snapshot: snap,
     };
 
@@ -1978,7 +2064,7 @@ if (window.lucide && tbody) {
     }
 
     // Add Bill Row
-        const btnAddRow = document.getElementById('btn-add-bill-row');
+          const btnAddRow = document.getElementById('btn-add-bill-row');
     if (btnAddRow) {
       btnAddRow.addEventListener('click', () => {
         if (this.isMedicalBudget()) {
@@ -1988,31 +2074,55 @@ if (window.lucide && tbody) {
             patients: [{ id: ++this.medicalRowSeq, relativeName: '', relation: '', hospital: '', amt: '' }],
           });
         } else {
-          this.billRows.push({ id: ++this.rowSeq, firm: '', bill: '', amt: '' });
+          this.billRows.push({
+            id: ++this.rowSeq,
+            firm: '',
+            bills: [{ id: ++this.rowSeq, bill: '', amt: '' }]
+          });
         }
         this.renderBillTableRows();
         this.updatePreview();
         this.saveAutosave();
       });
     }
-
     // Bill Table Input & Delete Event Delegation
     const billTableBody = document.getElementById('bill-table-body');
     if (billTableBody) {
             billTableBody.addEventListener('input', (e) => {
-        if (e.target.classList.contains('bill-input')) {
-          const rowId = parseInt(e.target.dataset.rowId, 10);
+                if (e.target.classList.contains('vendor-firm-input')) {
+          const groupId = parseInt(e.target.dataset.vendorGroupId, 10);
           const field = e.target.dataset.field;
-          const row = this.billRows.find((r) => r.id === rowId);
-          if (row) {
-            row[field] = e.target.value;
-            const total = this.calculateTotal();
-            const formTotalAmt = document.getElementById('form-total-amt');
-            if (formTotalAmt) formTotalAmt.textContent = `Rs. ${formatMoney(total)}`;
-            const formTotalWords = document.getElementById('form-total-words');
-            if (formTotalWords) formTotalWords.textContent = numberToWordsIndian(total);
+          const group = this.billRows.find((g) => g.id === groupId);
+          if (group) {
+            group[field] = e.target.value;
             this.updatePreview();
             this.saveAutosave();
+          }
+        }
+
+        if (e.target.classList.contains('vendor-bill-input')) {
+          const groupId = parseInt(e.target.dataset.vendorGroupId, 10);
+          const billId = parseInt(e.target.dataset.billId, 10);
+          const field = e.target.dataset.field;
+          const group = this.billRows.find((g) => g.id === groupId);
+          if (group) {
+            const bill = group.bills.find((b) => b.id === billId);
+            if (bill) {
+              bill[field] = e.target.value;
+              const groupTotal = group.bills.reduce((sum, b) => {
+                const v = parseFloat(b.amt);
+                return sum + (isNaN(v) ? 0 : v);
+              }, 0);
+              const totalCell = e.target.closest('table').closest('td').nextElementSibling;
+              if (totalCell) totalCell.textContent = `Rs. ${formatMoney(groupTotal)}`;
+              const total = this.calculateTotal();
+              const formTotalAmt = document.getElementById('form-total-amt');
+              if (formTotalAmt) formTotalAmt.textContent = `Rs. ${formatMoney(total)}`;
+              const formTotalWords = document.getElementById('form-total-words');
+              if (formTotalWords) formTotalWords.textContent = numberToWordsIndian(total);
+              this.updatePreview();
+              this.saveAutosave();
+            }
           }
         }
 
@@ -2055,14 +2165,12 @@ if (window.lucide && tbody) {
       });
 
             billTableBody.addEventListener('click', (e) => {
-        const duplicateBtn = e.target.closest('.btn-duplicate-row');
-        if (duplicateBtn) {
-          const rowId = parseInt(duplicateBtn.dataset.duplicateRowId, 10);
-          const index = this.billRows.findIndex((r) => r.id === rowId);
-          if (index !== -1) {
-            const source = this.billRows[index];
-            const copy = { id: ++this.rowSeq, firm: source.firm, bill: source.bill, amt: source.amt };
-            this.billRows.splice(index + 1, 0, copy);
+                const addBillBtn = e.target.closest('.btn-add-bill');
+        if (addBillBtn) {
+          const groupId = parseInt(addBillBtn.dataset.addBillGroup, 10);
+          const group = this.billRows.find((g) => g.id === groupId);
+          if (group) {
+            group.bills.push({ id: ++this.rowSeq, bill: '', amt: '' });
             this.renderBillTableRows();
             this.updatePreview();
             this.saveAutosave();
@@ -2070,44 +2178,17 @@ if (window.lucide && tbody) {
           return;
         }
 
-        const deleteBtn = e.target.closest('.btn-delete-row');
-        if (deleteBtn) {
-          const rowId = parseInt(deleteBtn.dataset.deleteRowId, 10);
-          if (this.billRows.length <= 1) {
-            this.showToast('At least one bill row is required.', true);
-            return;
-          }
-          this.billRows = this.billRows.filter((r) => r.id !== rowId);
-          this.renderBillTableRows();
-          this.updatePreview();
-          this.saveAutosave();
-          return;
-        }
-
-        const addPatientBtn = e.target.closest('.btn-add-patient');
-        if (addPatientBtn) {
-          const groupId = parseInt(addPatientBtn.dataset.addPatientGroup, 10);
-          const group = this.medicalRows.find((g) => g.id === groupId);
+        const deleteBillBtn = e.target.closest('.btn-delete-bill');
+        if (deleteBillBtn) {
+          const groupId = parseInt(deleteBillBtn.dataset.deleteBillGroup, 10);
+          const billId = parseInt(deleteBillBtn.dataset.deleteBillId, 10);
+          const group = this.billRows.find((g) => g.id === groupId);
           if (group) {
-            group.patients.push({ id: ++this.medicalRowSeq, relativeName: '', relation: '', amt: '' });
-            this.renderBillTableRows();
-            this.updatePreview();
-            this.saveAutosave();
-          }
-          return;
-        }
-
-        const deletePatientBtn = e.target.closest('.btn-delete-patient');
-        if (deletePatientBtn) {
-          const groupId = parseInt(deletePatientBtn.dataset.deletePatientGroup, 10);
-          const patientId = parseInt(deletePatientBtn.dataset.deletePatientId, 10);
-          const group = this.medicalRows.find((g) => g.id === groupId);
-          if (group) {
-            if (group.patients.length <= 1) {
-              this.showToast('At least one patient is required per group.', true);
+            if (group.bills.length <= 1) {
+              this.showToast('At least one bill is required per firm.', true);
               return;
             }
-            group.patients = group.patients.filter((p) => p.id !== patientId);
+            group.bills = group.bills.filter((b) => b.id !== billId);
             this.renderBillTableRows();
             this.updatePreview();
             this.saveAutosave();
@@ -2115,24 +2196,22 @@ if (window.lucide && tbody) {
           return;
         }
 
-        const dupMedicalBtn = e.target.closest('.btn-duplicate-medical');
-        if (dupMedicalBtn) {
-          const groupId = parseInt(dupMedicalBtn.dataset.duplicateMedicalId, 10);
-          const index = this.medicalRows.findIndex((g) => g.id === groupId);
+        const dupVendorBtn = e.target.closest('.btn-duplicate-vendor');
+        if (dupVendorBtn) {
+          const groupId = parseInt(dupVendorBtn.dataset.duplicateVendorId, 10);
+          const index = this.billRows.findIndex((g) => g.id === groupId);
           if (index !== -1) {
-            const source = this.medicalRows[index];
-              const newGroup = {
-              id: ++this.medicalRowSeq,
-              employeeName: source.employeeName,
-              patients: source.patients.map((p) => ({
-                id: ++this.medicalRowSeq,
-                relativeName: p.relativeName,
-                relation: p.relation,
-                hospital: p.hospital,
-                amt: p.amt,
+            const source = this.billRows[index];
+            const newGroup = {
+              id: ++this.rowSeq,
+              firm: source.firm,
+              bills: source.bills.map((b) => ({
+                id: ++this.rowSeq,
+                bill: b.bill,
+                amt: b.amt,
               })),
             };
-            this.medicalRows.splice(index + 1, 0, newGroup);
+            this.billRows.splice(index + 1, 0, newGroup);
             this.renderBillTableRows();
             this.updatePreview();
             this.saveAutosave();
@@ -2140,14 +2219,14 @@ if (window.lucide && tbody) {
           return;
         }
 
-        const delMedicalBtn = e.target.closest('.btn-delete-medical');
-        if (delMedicalBtn) {
-          const groupId = parseInt(delMedicalBtn.dataset.deleteMedicalId, 10);
-          if (this.medicalRows.length <= 1) {
-            this.showToast('At least one group is required.', true);
+        const delVendorBtn = e.target.closest('.btn-delete-vendor');
+        if (delVendorBtn) {
+          const groupId = parseInt(delVendorBtn.dataset.deleteVendorId, 10);
+          if (this.billRows.length <= 1) {
+            this.showToast('At least one firm is required.', true);
             return;
           }
-          this.medicalRows = this.medicalRows.filter((g) => g.id !== groupId);
+          this.billRows = this.billRows.filter((g) => g.id !== groupId);
           this.renderBillTableRows();
           this.updatePreview();
           this.saveAutosave();
@@ -2251,9 +2330,12 @@ if (window.lucide && tbody) {
       btnSaveDraft.addEventListener('click', () => this.saveCurrentToHistory());
     }
 
-    const btnReset = document.getElementById('btn-reset-form');
+        const btnReset = document.getElementById('btn-reset-form');
     if (btnReset) {
       btnReset.addEventListener('click', () => {
+        const targetBudgetHead = '2202 02 053 97 00 27-VKS';
+
+        // 1. Reset core form data
         this.schoolId = '1515004';
         this.phone = '28313597';
         this.schoolName = 'SARVODAYA VIDYALAYA';
@@ -2261,27 +2343,73 @@ if (window.lucide && tbody) {
         this.refNo = '324';
         this.sanctionDate = todayStr();
         this.sanctionType = 'Vendor Sanction';
-        this.budgetHead = '2202 02 053 97 00 27-VKS';
+        this.budgetHead = targetBudgetHead;
         this.copyTo = DEFAULT_COPY_TO;
         this.billRows = [
-          { id: ++this.rowSeq, firm: 'TOP SHOP TRADING', bill: 'INVOICE NO. 67 Dated 18/04/2026', amt: '6463.00' },
-          { id: ++this.rowSeq, firm: 'ENTERPRISES', bill: 'INVOICE NO. 80 Dated 20/04/2026', amt: '3399.00' },
-          { id: ++this.rowSeq, firm: 'AR ENTERPRISES', bill: 'INVOICE NO. 60 Dated 13/04/2026', amt: '1500.00' },
+          { id: ++this.rowSeq, firm: 'TOP SHOP TRADING', bills: [{ id: ++this.rowSeq, bill: 'INVOICE NO. 67 Dated 18/04/2026', amt: '6463.00' }] },
+          { id: ++this.rowSeq, firm: 'ENTERPRISES',       bills: [{ id: ++this.rowSeq, bill: 'INVOICE NO. 80 Dated 20/04/2026', amt: '3399.00' }] },
+          { id: ++this.rowSeq, firm: 'AR ENTERPRISES',    bills: [{ id: ++this.rowSeq, bill: 'INVOICE NO. 60 Dated 13/04/2026', amt: '1500.00' }] },
         ];
+        this.medicalRows = [
+          { id: ++this.medicalRowSeq, employeeName: '', patients: [{ id: ++this.medicalRowSeq, relativeName: '', relation: '', hospital: '', amt: '' }] },
+        ];
+
+        // 2. Reset output mode to "New Standalone" and clear all chained/append state
+        this.outputMode = 'new';
+        this.appendedSnapshots = [];
+        this.continueModalSelectedIds = [];
+        this.attachedPdfBytes = null;
+        this.attachedPdfName = null;
+
+        // 3. Reset radio buttons and labels
+        const radioNew = document.getElementById('radio-mode-new');
+        const radioContinue = document.getElementById('radio-mode-continue');
+        const labelNew = document.getElementById('label-mode-new');
+        const labelContinue = document.getElementById('label-mode-continue');
+        const continueConfigWrap = document.getElementById('continue-config-btn-wrap');
+        const chainedBadge = document.getElementById('chained-badge');
+
+        if (radioNew) radioNew.checked = true;
+        if (radioContinue) radioContinue.checked = false;
+        if (labelNew) labelNew.className = 'flex items-center gap-3 cursor-pointer p-3 rounded-lg border transition-all bg-blue-50 border-blue-200 shadow-2xs';
+        if (labelContinue) labelContinue.className = 'flex items-center gap-3 cursor-pointer p-3 rounded-lg border transition-all border-slate-200 hover:bg-slate-50';
+        if (continueConfigWrap) continueConfigWrap.classList.add('hidden');
+        if (chainedBadge) chainedBadge.classList.add('hidden');
+
+        // 4. Reset attached-PDF UI
+        const inputFilePdf = document.getElementById('input-file-append-pdf');
+        const attachedWrap = document.getElementById('attached-pdf-name-wrap');
+        const btnChoosePdf = document.getElementById('btn-choose-append-pdf');
+        const btnRemovePdf = document.getElementById('btn-remove-attached-pdf');
+        if (inputFilePdf) inputFilePdf.value = '';
+        if (attachedWrap) attachedWrap.classList.add('hidden');
+        if (btnChoosePdf) btnChoosePdf.classList.remove('hidden');
+        if (btnRemovePdf) btnRemovePdf.classList.add('hidden');
+
+        // 5. Refresh UI
         this.populateFormInputs();
         this.renderBudgetHeads();
+
+        // Re-select the budget head after Tom Select rebuild (renderBudgetHeads clears it)
+        const select = document.getElementById('select-budgetHead');
+        if (select && select.tomselect) {
+          select.tomselect.setValue(targetBudgetHead, true);
+        }
+        this.budgetHead = targetBudgetHead;
+
         this.renderBillTableRows();
         this.updatePreview();
+        this.updateExportBtnLabel();
         this.saveAutosave();
         this.showToast('Reset form to sample Delhi template.');
       });
     }
-
     // History Modal
     const historyModal = document.getElementById('history-modal');
     const btnOpenHistory = document.getElementById('btn-open-history');
     const btnCloseHistory = document.getElementById('btn-close-history-modal');
-    const btnClearHistory = document.getElementById('btn-clear-all-history');
+    const btnClearHistory = document.getElementById('btn-clear-all-history'); 
+    const btnClearHistory2 = document.getElementById('btn-clear-all-history2');
 
     if (btnOpenHistory && historyModal) {
       btnOpenHistory.addEventListener('click', () => {
@@ -2297,8 +2425,15 @@ if (window.lucide && tbody) {
         if (e.target === historyModal) historyModal.classList.add('hidden');
       });
     }
-    if (btnClearHistory) {
+    if (btnClearHistory && btnClearHistory2) {
       btnClearHistory.addEventListener('click', () => {
+        this.history = [];
+        this.saveHistoryToStorage();
+        this.renderHistoryList();
+        this.showToast('Cleared all history.');
+      }); 
+      
+      btnClearHistory2.addEventListener('click', () => {
         this.history = [];
         this.saveHistoryToStorage();
         this.renderHistoryList();

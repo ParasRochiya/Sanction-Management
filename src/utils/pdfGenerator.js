@@ -38,6 +38,45 @@ async function getPdfLibDocument() {
   throw new Error('PDFLib library is not loaded. Please ensure the pdf-lib script is included.');
 }
 
+// ------------------------------------------------------------------
+// Helper: render inline mixed bold/normal text with word wrapping.
+// segments = [{ text: '...', bold: true/false }, ...]
+// ------------------------------------------------------------------
+function drawMixedText(doc, segments, startX, startY, maxWidth, lineHeight) {
+  let x = startX;
+  let y = startY;
+  const spaceWidth = doc.getTextWidth(' ');
+
+  for (const seg of segments) {
+    doc.setFont('times', seg.bold ? 'bold' : 'normal');
+    const lines = seg.text.split('\n');
+    lines.forEach((line, lineIdx) => {
+      if (lineIdx > 0) {
+        y += lineHeight;
+        x = startX;
+      }
+      const words = line.trim().split(/\s+/).filter(w => w.length > 0);
+      for (let i = 0; i < words.length; i++) {
+        const word = words[i];
+        const w = doc.getTextWidth(word);
+        const advance = (x > startX) ? spaceWidth : 0;
+        if (x + advance + w > startX + maxWidth && x > startX) {
+          y += lineHeight;
+          x = startX;
+        }
+        if (x > startX) x += advance;
+        doc.text(word, x, y);
+        x += w;
+      }
+    });
+  }
+  doc.setFont('times', 'normal');
+  return y;
+}
+
+// ------------------------------------------------------------------
+// Main PDF generator
+// ------------------------------------------------------------------
 export async function generateSingleOrMultiSanctionPdfBytes(snapshots) {
   const JsPDF = await getJsPdfConstructor();
   const doc = new JsPDF({
@@ -46,8 +85,7 @@ export async function generateSingleOrMultiSanctionPdfBytes(snapshots) {
     format: 'a4',
   });
 
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
+  const pageWidth = doc.internal.pageSize.getWidth();   // 210 mm
   const marginLeft = 18;
   const marginRight = 18;
   const contentWidth = pageWidth - marginLeft - marginRight;
@@ -64,6 +102,9 @@ export async function generateSingleOrMultiSanctionPdfBytes(snapshots) {
     let columnStyles = {};
     let amountColIndex = 3;
 
+    // --------------------------------------------------------
+    // Build table data
+    // --------------------------------------------------------
     if (isMedical) {
       amountColIndex = 4;
       total = (snap.medicalRows || []).reduce((sum, group) => {
@@ -104,19 +145,26 @@ export async function generateSingleOrMultiSanctionPdfBytes(snapshots) {
         4: { halign: 'right', cellWidth: 28 },
       };
     } else {
-      total = (snap.billRows || []).reduce((sum, r) => {
-        const v = parseFloat(r.amt);
-        return sum + (isNaN(v) ? 0 : v);
+      total = (snap.billRows || []).reduce((sum, group) => {
+        return sum + (group.bills || []).reduce((bSum, b) => {
+          const v = parseFloat(b.amt);
+          return bSum + (isNaN(v) ? 0 : v);
+        }, 0);
       }, 0);
 
-      tableBody = (snap.billRows || []).map((r, idx) => {
-        const amtVal = parseFloat(r.amt);
-        return [
-          pad2(idx + 1),
-          r.firm || '',
-          r.bill || '',
-          formatMoney(isNaN(amtVal) ? 0 : amtVal)
-        ];
+      let slNo = 1;
+      (snap.billRows || []).forEach((group) => {
+        const bills = group.bills || [];
+        bills.forEach((b, bIdx) => {
+          const amtVal = parseFloat(b.amt);
+          tableBody.push([
+            bIdx === 0 ? pad2(slNo) : '',
+            bIdx === 0 ? (group.firm || '').toUpperCase() : '',
+            b.bill || '',
+            formatMoney(isNaN(amtVal) ? 0 : amtVal)
+          ]);
+        });
+        slNo++;
       });
 
       tableBody.push([
@@ -138,55 +186,58 @@ export async function generateSingleOrMultiSanctionPdfBytes(snapshots) {
     const fy = currentFinancialYear();
     const ref = refNoFull(snap.refNo);
 
-    let y = 16;
+    // --------------------------------------------------------
+    // Document layout (matches live preview spacing)
+    // --------------------------------------------------------
+    let y = 18; // top margin = 18mm
 
-    // Header line: School ID & Phone
+    // 1. Header: School ID & Phone
     doc.setFont('times', 'bold');
     doc.setFontSize(10);
     doc.text(`SCHOOL ID - ${snap.schoolId || ''}`, marginLeft, y);
-    const phoneText = `PHONE - ${snap.phone || ''}`;
-    const phoneWidth = doc.getTextWidth(phoneText);
-    doc.text(phoneText, pageWidth - marginRight - phoneWidth, y);
+    doc.text(`PHONE - ${snap.phone || ''}`, pageWidth - marginRight, y, { align: 'right' });
 
-    // School Name (Centered, large)
+    // 2. School Name
     y += 7;
-    doc.setFontSize(14);
-    doc.setFont('times', 'bold');
+    doc.setFontSize(14.5);
     doc.text(snap.schoolName || 'SARVODAYA VIDYALAYA', pageWidth / 2, y, { align: 'center' });
 
-    // Address (Centered)
-    y += 5.5;
+    // 3. Address
+    y += 5;
     doc.setFontSize(10.5);
+    doc.setFont('times', 'normal');
     doc.text(snap.address || '', pageWidth / 2, y, { align: 'center' });
 
-    // Ref No & Date
+    // 4. Ref. No & Date
     y += 7;
-    doc.setFontSize(10);
     doc.setFont('times', 'bold');
+    doc.setFontSize(10);
     doc.text(`Ref. No. ${ref}`, marginLeft, y);
-    const dateText = `Dated: ${snap.date || ''}`;
-    const dateWidth = doc.getTextWidth(dateText);
-    doc.text(dateText, pageWidth - marginRight - dateWidth, y);
+    doc.text(`Dated: ${snap.date || ''}`, pageWidth - marginRight, y, { align: 'right' });
 
-    // Title: SANCTION ORDER (Underlined, centered)
-    y += 7.5;
+    // 5. Title: SANCTION ORDER (underlined, centered)
+    y += 8;
     doc.setFontSize(12.5);
     doc.setFont('times', 'bold');
     doc.text('SANCTION ORDER', pageWidth / 2, y, { align: 'center' });
     const titleWidth = doc.getTextWidth('SANCTION ORDER');
-    doc.line((pageWidth / 2) - (titleWidth / 2), y + 1, (pageWidth / 2) + (titleWidth / 2), y + 1);
+    doc.setLineWidth(0.4);
+    doc.line((pageWidth / 2) - (titleWidth / 2), y + 1.5, (pageWidth / 2) + (titleWidth / 2), y + 1.5);
 
-    // Body paragraph
-    y += 7;
-    doc.setFontSize(10);
-    doc.setFont('times', 'normal');
-    
-    const bodyText = `Sanction is hereby conveyed for incurring an expenditure of Rs. ${formatMoney(total)} (Rs. ${amtWords}) for making payment under head ${snap.budgetHead || ''} as per details below: --`;
-    const splitBody = doc.splitTextToSize(bodyText, contentWidth);
-    doc.text(splitBody, marginLeft, y);
-    y += splitBody.length * 4.8 + 2;
+    // 6. Body paragraph (inline bold for amount & budget head)
+    y += 8;
+    doc.setFontSize(10.5);
+    const bodyEndY = drawMixedText(doc, [
+      { text: 'Sanction is hereby conveyed for incurring an expenditure of ', bold: false },
+      { text: `Rs. ${formatMoney(total)} (Rs. ${amtWords})`, bold: true },
+      { text: ' for making payment under head ', bold: false },
+      { text: snap.budgetHead || '', bold: true },
+      { text: ' as per details below: --', bold: false },
+    ], marginLeft, y, contentWidth, 5.5);
+    y = bodyEndY + 3;
 
-    // Table
+    // 7. Table
+    y += 2;
     const tableConfig = {
       startY: y,
       margin: { left: marginLeft, right: marginRight },
@@ -195,14 +246,14 @@ export async function generateSingleOrMultiSanctionPdfBytes(snapshots) {
       theme: 'grid',
       styles: {
         font: 'times',
-        fontSize: 9,
-        cellPadding: 2,
-        textColor: [20, 20, 20],
-        lineColor: [120, 120, 120],
-        lineWidth: 0.2,
+        fontSize: 9.5,
+        cellPadding: 1.8,
+        textColor: [0, 0, 0],
+        lineColor: [100, 116, 139],   // slate-500
+        lineWidth: 0.25,
       },
       headStyles: {
-        fillColor: [217, 217, 217],
+        fillColor: [226, 232, 240],   // slate-200
         textColor: [0, 0, 0],
         fontStyle: 'bold',
         halign: 'left',
@@ -223,50 +274,51 @@ export async function generateSingleOrMultiSanctionPdfBytes(snapshots) {
     }
 
     const finalY = (doc.lastAutoTable && doc.lastAutoTable.finalY) || (y + 40);
-    y = finalY + 5;
+    y = finalY + 4;
 
-    // Paragraph 1: Major Head & Powers delegated
-    doc.setFont('times', 'normal');
-    doc.setFontSize(9.5);
-    const p1 = `Major Head: ${snap.budgetHead || ''} This Sanction has been accorded/conveyed in exercise of the powers delegated by the finance department Govt. NCT of Delhi and in consultation with account functionaries of the Department.`;
-    const splitP1 = doc.splitTextToSize(p1, contentWidth);
-    doc.text(splitP1, marginLeft, y);
-    y += splitP1.length * 4.2 + 2.5;
+    // 8. Paragraph 1 (Major Head + delegated powers)
+    doc.setFontSize(10);
+    const p1EndY = drawMixedText(doc, [
+      { text: 'Major Head: ', bold: true },
+      { text: snap.budgetHead || '', bold: true },
+      { text: ' This Sanction has been accorded/conveyed in exercise of the powers delegated by the finance department Govt. NCT of Delhi and in consultation with account functionaries of the Department.', bold: false },
+    ], marginLeft, y, contentWidth, 5);
+    y = p1EndY + 4;
 
-    // Paragraph 2: Prior approval
-    const p2 = `This issues with the prior approval of Deputy Director of Education/Regional Director of Education/Head of department/Competent Authority/Secretary of Education.`;
-    const splitP2 = doc.splitTextToSize(p2, contentWidth);
-    doc.text(splitP2, marginLeft, y);
-    y += splitP2.length * 4.2 + 2.5;
+    // 9. Paragraph 2 (Prior approval)
+    const p2EndY = drawMixedText(doc, [
+      { text: 'This issues with the prior approval of Deputy Director of Education/Regional Director of Education/Head of department/Competent Authority/Secretary of Education.', bold: false },
+    ], marginLeft, y, contentWidth, 5);
+    y = p2EndY + 4;
 
-    // Paragraph 3: Expenditure debited
-    const p3 = `The expenditure involved on this account would be debatable to the under mentioned Head of Account the year ${fy} under demand for Grant no. 6.\nMajor Head ${snap.budgetHead || ''}`;
-    const splitP3 = doc.splitTextToSize(p3, contentWidth);
-    doc.text(splitP3, marginLeft, y);
-    y += splitP3.length * 4.2 + 8;
+    // 10. Paragraph 3 (Expenditure + year + Major Head)
+    const p3EndY = drawMixedText(doc, [
+      { text: 'The expenditure involved on this account would be debatable to the under mentioned Head of Account the year ', bold: false },
+      { text: fy, bold: true },
+      { text: ' under demand for Grant no. 6.', bold: false },
+      { text: '\nMajor Head ', bold: false },
+      { text: snap.budgetHead || '', bold: true },
+    ], marginLeft, y, contentWidth, 5);
+    y = p3EndY + 25;
 
-    // Signature (Right aligned)
+    // 11. Signature
+    doc.setFont('times', 'bold');
+    doc.setFontSize(11);
+    doc.text('HEAD OF SCHOOL', pageWidth - marginRight, y, { align: 'right' });
+    y += 8;
+
+    // 12. Copy To
     doc.setFont('times', 'bold');
     doc.setFontSize(10);
-    doc.text('HEAD OF SCHOOL', pageWidth - marginRight, y, { align: 'right' });
-    y += 7;
-
-    // Copy To section
-    doc.setFont('times', 'bold');
-    doc.setFontSize(9.5);
     doc.text('Copy to:-', marginLeft, y);
-    y += 4.5;
+    y += 5;
 
     doc.setFont('times', 'normal');
-    doc.setFontSize(9);
-    const copyLines = (snap.copyTo || '')
-      .split('\n')
-      .map(l => l.trim())
-      .filter(Boolean);
-
+    doc.setFontSize(9.5);
+    const copyLines = (snap.copyTo || '').split('\n').map(l => l.trim()).filter(Boolean);
     copyLines.forEach(line => {
       doc.text(line, marginLeft, y);
-      y += 4;
+      y += 4.5;
     });
   });
 
@@ -274,31 +326,25 @@ export async function generateSingleOrMultiSanctionPdfBytes(snapshots) {
   return new Uint8Array(arrayBuffer);
 }
 
-/**
- * Appends generated sanction order page(s) to an existing uploaded PDF
- */
+// ------------------------------------------------------------------
+// Append to existing PDF
+// ------------------------------------------------------------------
 export async function appendSanctionsToExistingPdf(existingPdfBytes, newSnapshots) {
-  // 1. Generate new sanction pages as a PDF Uint8Array
   const newPdfBytes = await generateSingleOrMultiSanctionPdfBytes(newSnapshots);
-
-  // 2. Load existing PDF via pdf-lib
   const PDFDocument = await getPdfLibDocument();
   const existingPdfDoc = await PDFDocument.load(existingPdfBytes);
-
-  // 3. Load newly generated PDF via pdf-lib
   const newPdfDoc = await PDFDocument.load(newPdfBytes);
-
-  // 4. Copy all pages from newPdfDoc to existingPdfDoc
   const copiedPages = await existingPdfDoc.copyPages(newPdfDoc, newPdfDoc.getPageIndices());
   copiedPages.forEach((page) => {
     existingPdfDoc.addPage(page);
   });
-
-  // 5. Save and return combined PDF
   const mergedPdfBytes = await existingPdfDoc.save();
   return mergedPdfBytes;
 }
 
+// ------------------------------------------------------------------
+// Download blob
+// ------------------------------------------------------------------
 export function downloadBlob(data, filename) {
   const blob = data instanceof Blob ? data : new Blob([data], { type: 'application/pdf' });
   const url = URL.createObjectURL(blob);
